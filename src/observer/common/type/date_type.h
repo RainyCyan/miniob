@@ -24,6 +24,10 @@ public:
 
   virtual ~DateType() = default;
 
+  // by ywm:add is_valid_date method
+  bool is_leap_year(const int &year)const;
+  bool is_valid_date(const int &year,const int &month,const int &day) const;
+
   int compare(const Value &left, const Value &right) const override;
 
   RC cast_to(const Value &val, AttrType type, Value &result) const override;

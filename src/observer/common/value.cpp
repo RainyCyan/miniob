@@ -202,13 +202,13 @@ void Value::set_date(int y, int m, int d)
   length_           = sizeof(int);
 }
 
-void Value::set_date(int val)
-{
-  reset();
-  attr_type_       = AttrType::DATES;
-  value_.int_value_ = val;
-  length_          = sizeof(int);
-}
+// void Value::set_date(int val)
+// {
+//   reset();
+//   attr_type_       = AttrType::DATES;
+//   value_.int_value_ = val;
+//   length_          = sizeof(int);
+// }
 
 void Value::set_value(const Value &value)
 {
@@ -225,9 +225,9 @@ void Value::set_value(const Value &value)
     case AttrType::BOOLEANS: {
       set_boolean(value.get_boolean());
     } break;
-    case AttrType::DATES: {
-      set_date(value.get_int());
-    } break;
+    // case AttrType::DATES: {
+    //   set_date(value.get_int());
+    // } break;
     default: {
       ASSERT(false, "got an invalid value type");
     } break;
@@ -259,6 +259,7 @@ char *Value::data() const
 string Value::to_string() const
 {
   string res;
+  LOG_INFO("call value.to_string");
   RC     rc = DataType::type_instance(this->attr_type_)->to_string(*this, res);
   if (OB_FAIL(rc)) {
     LOG_WARN("failed to convert value to string. type=%s", attr_type_to_string(this->attr_type_));
@@ -292,6 +293,9 @@ int Value::get_int() const
     case AttrType::BOOLEANS: {
       return (int)(value_.bool_value_);
     }
+    // case AttrType::DATES:{
+    //   return (int)(value_.int_value_);
+    // }
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
       return 0;

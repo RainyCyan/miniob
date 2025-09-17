@@ -198,6 +198,7 @@ public:
     cell.reset();
     cell.set_type(field_meta->type());
     cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+    LOG_INFO("cell to_string:%s",cell.to_string().c_str());
     return RC::SUCCESS;
   }
 
