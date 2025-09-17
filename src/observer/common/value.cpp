@@ -28,8 +28,7 @@ Value::Value(bool val) { set_boolean(val); }
 
 Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
-Value::Value(const string_t& s) { set_string(s.data(), s.size()); }
-
+Value::Value(const string_t &s) { set_string(s.data(), s.size()); }
 
 Value::Value(const Value &other)
 {
@@ -128,6 +127,10 @@ void Value::set_data(char *data, int length)
       value_.bool_value_ = *(int *)data != 0;
       length_            = length;
     } break;
+    case AttrType::DATES: {
+      value_.int_value_ = *(int *)data;
+      length_            = length;
+    } break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;
@@ -183,12 +186,28 @@ void Value::set_empty_string(int len)
   reset();
   attr_type_ = AttrType::CHARS;
 
-  own_data_ = true;
+  own_data_             = true;
   value_.pointer_value_ = new char[len + 1];
   length_               = len;
   memset(value_.pointer_value_, 0, len);
   value_.pointer_value_[len] = '\0';
-  
+}
+
+// by ywm:set_date method
+void Value::set_date(int y, int m, int d)
+{
+  reset();
+  attr_type_        = AttrType::DATES;
+  value_.int_value_ = y * 10000 + m * 100 + d;
+  length_           = sizeof(int);
+}
+
+void Value::set_date(int val)
+{
+  reset();
+  attr_type_       = AttrType::DATES;
+  value_.int_value_ = val;
+  length_          = sizeof(int);
 }
 
 void Value::set_value(const Value &value)
@@ -205,6 +224,9 @@ void Value::set_value(const Value &value)
     } break;
     case AttrType::BOOLEANS: {
       set_boolean(value.get_boolean());
+    } break;
+    case AttrType::DATES: {
+      set_date(value.get_int());
     } break;
     default: {
       ASSERT(false, "got an invalid value type");
@@ -245,7 +267,10 @@ string Value::to_string() const
   return res;
 }
 
-int Value::compare(const Value &other) const { return DataType::type_instance(this->attr_type_)->compare(*this, other); }
+int Value::compare(const Value &other) const
+{
+  return DataType::type_instance(this->attr_type_)->compare(*this, other);
+}
 
 int Value::get_int() const
 {
@@ -349,3 +374,22 @@ bool Value::get_boolean() const
   }
   return false;
 }
+
+// int Value::get_date()
+// {  
+//   switch (attr_type_) {
+//     case AttrType::CHARS: {
+//       try {
+//         return (int)(DataType().);
+//       } catch (exception const &ex) {
+//         LOG_TRACE("failed to convert string to number. s=%s, ex=%s", value_.pointer_value_, ex.what());
+//         return 0;
+//       }
+//     }
+//     default: {
+//       LOG_WARN("unknown data type. type=%d", attr_type_);
+//       return 0;
+//     }
+//   }
+//   return 0;
+// }

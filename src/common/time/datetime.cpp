@@ -22,7 +22,27 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/sstream.h"
 #include "common/lang/string.h"
 namespace common {
-
+bool is_leap_year(const int &year) { return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0); }
+bool is_valid_date(const int &year, const int &month, const int &day)
+{
+  // 年的范围
+  if (year < 1 || year > 9999) {
+    return false;
+  }
+  // 月份范围
+  if (month < 1 || month > 12) {
+    return false;
+  }
+  // 闰年二月天数29
+  int daysInMonth[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  if (is_leap_year(year))
+    daysInMonth[1] = 29;
+  // 日期范围
+  if (day < 1 || day > daysInMonth[month - 1]) {
+    return false;
+  }
+  return true;
+}
 DateTime::DateTime(string &xml_str)
 {
   tm tmp;
@@ -65,8 +85,8 @@ string DateTime::time_t_to_xml_str(time_t timet)
 {
   string        ret_val;
   ostringstream oss;
-  struct tm          tmbuf;
-  tm                *tm_info = gmtime_r(&timet, &tmbuf);
+  struct tm     tmbuf;
+  tm           *tm_info = gmtime_r(&timet, &tmbuf);
   oss << tm_info->tm_year + 1900 << "-";
   if ((tm_info->tm_mon + 1) <= 9)
     oss << "0";
@@ -89,7 +109,7 @@ string DateTime::time_t_to_xml_str(time_t timet)
 
 string DateTime::str_to_time_t_str(string &xml_str)
 {
-  tm                 tmp;
+  tm            tmp;
   ostringstream oss;
   sscanf(xml_str.c_str(),
       "%04d-%02d-%02dT%02d:%02d:%02dZ",
@@ -126,7 +146,7 @@ string DateTime::to_xml_date_time()
 {
 
   string        ret_val;
-  tm                 tm_info;
+  tm            tm_info;
   ostringstream oss;
 
   tm_info = to_tm();
@@ -349,26 +369,26 @@ string Now::unique()
   uint64_t        temp;
   static uint64_t last_unique = 0;
 #if defined(LINUX)
-  #if defined(__MUSL__)
-    #define MUTEX_INITIALIZER(__mutex, __type)          \
-      do {                                              \
-        static pthread_mutexattr_t  __attr;             \
-        static pthread_mutexattr_t *__p_attr = nullptr; \
-        if (nullptr == __p_attr) {                      \
-          __p_attr = &__attr;                           \
-          pthread_mutexattr_init(__p_attr);             \
-          pthread_mutexattr_settype(__p_attr, __type);  \
-          pthread_mutex_init(&__mutex, __p_attr);       \
-        }                                               \
-      } while (0)
+#if defined(__MUSL__)
+#define MUTEX_INITIALIZER(__mutex, __type)          \
+  do {                                              \
+    static pthread_mutexattr_t  __attr;             \
+    static pthread_mutexattr_t *__p_attr = nullptr; \
+    if (nullptr == __p_attr) {                      \
+      __p_attr = &__attr;                           \
+      pthread_mutexattr_init(__p_attr);             \
+      pthread_mutexattr_settype(__p_attr, __type);  \
+      pthread_mutex_init(&__mutex, __p_attr);       \
+    }                                               \
+  } while (0)
 
-    static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-    MUTEX_INITIALIZER(mutex, PTHREAD_MUTEX_ERRORCHECK);
+  static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+  MUTEX_INITIALIZER(mutex, PTHREAD_MUTEX_ERRORCHECK);
 
-    #undef MUTEX_INITIALIZER
-  #else
-    static pthread_mutex_t mutex = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
-  #endif
+#undef MUTEX_INITIALIZER
+#else
+  static pthread_mutex_t mutex = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
+#endif
 #elif defined(__MACH__)
   static pthread_mutex_t mutex = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER;
 #endif

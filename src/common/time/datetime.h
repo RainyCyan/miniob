@@ -44,6 +44,8 @@ namespace common {
  *  \sa http://scienceworld.wolfram.com/astronomy/GregorianCalendar.html
  *  \sa http://scienceworld.wolfram.com/astronomy/Weekday.html
  */
+bool is_leap_year(const int &year);
+bool is_valid_date(const int &year,const int &month,const int &day);
 
 struct DateTime
 {
@@ -289,6 +291,8 @@ struct DateTime
   // parse the duration string and convert it to struct tm
   void parse_duration(string dur_str, struct tm &tm_t);
 };
+
+
 
 inline bool operator==(const DateTime &lhs, const DateTime &rhs)
 {
