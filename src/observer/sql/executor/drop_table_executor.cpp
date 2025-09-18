@@ -9,28 +9,27 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 //
-// by ywm,2025/9/18
+// by ywm,2025/9/19
 
-#include "sql/executor/drop_index_executor.h"
+#include "sql/executor/drop_table_executor.h"
 #include "common/log/log.h"
 #include "event/session_event.h"
 #include "event/sql_event.h"
 #include "session/session.h"
-#include "sql/stmt/drop_index_stmt.h"
+#include "sql/stmt/drop_table_stmt.h"
 // #include "storage/table/table.h"
-#include "storage/db/db.h"
 
-RC DropIndexExecutor::execute(SQLStageEvent *sql_event)
+#include "storage/db/db.h"
+RC DropTableExecutor::execute(SQLStageEvent *sql_event)
 {
   Stmt    *stmt    = sql_event->stmt();
   Session *session = sql_event->session_event()->session();
-  ASSERT(stmt->type() == StmtType::DROP_INDEX,
-      "drop index executor can not run this command: %d",
+  ASSERT(stmt->type() == StmtType::DROP_TABLE,
+      "drop table executor can not run this command: %d",
       static_cast<int>(stmt->type()));
 
-  DropIndexStmt *drop_index_stmt = static_cast<DropIndexStmt *>(stmt);
+  DropTableStmt *drop_table_stmt = static_cast<DropTableStmt *>(stmt);
 
-  Trx   *trx   = session->current_trx();
-  Table *table = drop_index_stmt->table();
-  return table->drop_index(trx, drop_index_stmt->index_name().c_str());
+  const char *table_name=drop_table_stmt->table_name().c_str();
+  return session->get_current_db()->drop_table(table_name);
 }

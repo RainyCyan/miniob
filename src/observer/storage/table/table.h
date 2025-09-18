@@ -61,7 +61,10 @@ public:
   RC create(Db *db, int32_t table_id, const char *path, const char *name, const char *base_dir,
       span<const AttrInfoSqlNode> attributes, const vector<string> &primary_keys, StorageFormat storage_format,
       StorageEngine storage_engine);
-
+  /**
+   * 删除一个表
+   */
+  RC drop(const char *path,const char *base_dir);
   /**
    * 打开一个表
    * @param meta_file 保存表元数据的文件完整路径

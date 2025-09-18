@@ -125,6 +125,43 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
   return rc;
 }
 
+RC Table:: drop(const char *path,const char *base_dir)
+{
+  RC rc;
+
+  // drop all index
+  rc = engine_->clear_index();
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to clear index");
+    return rc;
+  }
+
+  //drop meta
+  // 尝试删除文件
+
+  if (remove(path) != 0) {
+    if (errno == ENOENT) {
+      // 文件不存在，视为成功
+      LOG_INFO("File %s does not exist", path);
+      return RC::SUCCESS;
+    }
+    
+    LOG_ERROR("Failed to delete file %s: %s", path, strerror(errno));
+    return RC::NOT_EXIST;
+  }
+  
+  LOG_INFO("Successfully deleted file %s", path);
+  string             data_file = table_data_file(base_dir, table_meta_.name());
+  BufferPoolManager &bpm       = db_->buffer_pool_manager();
+  rc                           = bpm.delete_file(data_file.c_str());
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to delete disk buffer pool of data file. file name=%s", data_file.c_str());
+    return rc;
+  }
+
+  return rc;
+}
+
 RC Table::open(Db *db, const char *meta_file, const char *base_dir)
 {
   // 加载元数据文件

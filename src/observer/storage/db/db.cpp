@@ -176,6 +176,33 @@ RC Db::create_table(const char *table_name, span<const AttrInfoSqlNode> attribut
   return RC::SUCCESS;
 }
 
+//by ywm,drop table impl
+RC Db::drop_table(const char *table_name)
+{
+  RC rc = RC::SUCCESS;
+  // check table_name
+  if (opened_tables_.count(table_name) == 0) {
+    LOG_WARN("%s has been opened before.", table_name);
+    return RC::SCHEMA_TABLE_EXIST;
+  }
+ 
+  //get table
+  string  table_file_path = table_meta_file(path_.c_str(), table_name);
+  Table *table=find_table(table_name);
+
+  rc=table->drop(table_file_path.c_str(),path_.c_str());
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to drop table %s.", table_name);
+    return rc;
+  }
+  delete table;
+
+  //移除opened_tables_相关项
+  opened_tables_.erase(table_name);
+  LOG_INFO("Successfully drop table %s",table_name);
+  return RC::SUCCESS;
+}
+
 Table *Db::find_table(const char *table_name) const
 {
   unordered_map<string, Table *>::const_iterator iter = opened_tables_.find(table_name);

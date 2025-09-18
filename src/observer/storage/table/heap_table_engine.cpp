@@ -282,6 +282,23 @@ RC HeapTableEngine::drop_index(Trx *trx, const char *index_name)
   return rc;
 }
 
+RC HeapTableEngine::clear_index()
+{
+  RC rc;
+  for(auto &index:indexes_)
+  {
+    rc=index->drop();
+    if(rc!=RC::SUCCESS)
+    {
+      LOG_ERROR("Failed to drop index");
+      return rc;
+    }
+    delete index;
+  }
+  indexes_.clear();
+  return RC::SUCCESS;
+}
+
 RC HeapTableEngine::insert_entry_of_indexes(const char *record, const RID &rid)
 {
   RC rc = RC::SUCCESS;
