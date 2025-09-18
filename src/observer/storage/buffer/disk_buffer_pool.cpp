@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 #include <errno.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "common/io/io.h"
 #include "common/lang/mutex.h"
@@ -568,6 +569,7 @@ RC DiskBufferPool::flush_page_internal(Frame &frame)
 
 RC DiskBufferPool::flush_all_pages()
 {
+  LOG_INFO("id:%d",id());
   list<Frame *> used = frame_manager_.find_list(id());
   for (Frame *frame : used) {
     RC rc = flush_page(*frame);
@@ -890,6 +892,45 @@ RC BufferPoolManager::close_file(const char *_file_name)
   return RC::SUCCESS;
 }
 
+// by ywm,delete_file
+// RC BufferPoolManager::delete_file(const char *file_name)
+// {
+//   // close_file(file_name);
+//   int fd=remove(file_name);
+//   //使用unlink代替remove,避免死锁和读取正在删除的文件
+//   // int fd=unlink(file_name);
+//   if(0!=fd)
+//   {
+//     LOG_ERROR("Failed to delete index file %s",file_name);
+//     return RC::NOT_EXIST;
+//   }
+//   return RC::SUCCESS;
+// }
+RC BufferPoolManager::delete_file(const char *file_name)
+{
+  if (file_name == nullptr || strlen(file_name) == 0) {
+    LOG_ERROR("Invalid file name");
+    return RC::INVALID_ARGUMENT;
+  }
+  
+  // 尝试关闭文件（如果已打开）
+  close_file(file_name); // 忽略返回值，因为我们要删除文件
+  
+  // 尝试删除文件
+  if (remove(file_name) != 0) {
+    if (errno == ENOENT) {
+      // 文件不存在，视为成功
+      LOG_INFO("File %s does not exist", file_name);
+      return RC::SUCCESS;
+    }
+    
+    LOG_ERROR("Failed to delete file %s: %s", file_name, strerror(errno));
+    return RC::NOT_EXIST;
+  }
+  
+  LOG_INFO("Successfully deleted file %s", file_name);
+  return RC::SUCCESS;
+}
 RC BufferPoolManager::flush_page(Frame &frame)
 {
   int buffer_pool_id = frame.buffer_pool_id();

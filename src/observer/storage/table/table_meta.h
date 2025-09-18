@@ -41,6 +41,9 @@ public:
 
   RC add_index(const IndexMeta &index);
 
+  //by ywm,delete_index from table_meta
+  RC remove_index(const IndexMeta &index_meta);
+
 public:
   int32_t             table_id() const { return table_id_; }
   const char         *name() const;

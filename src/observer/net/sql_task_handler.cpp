@@ -62,25 +62,25 @@ RC SqlTaskHandler::handle_sql(SQLStageEvent *sql_event)
     LOG_TRACE("failed to do query cache. rc=%s", strrc(rc));
     return rc;
   }
-
+  // parse
   rc = parse_stage_.handle_request(sql_event);
   if (OB_FAIL(rc)) {
     LOG_TRACE("failed to do parse. rc=%s", strrc(rc));
     return rc;
   }
-
+  //resolve
   rc = resolve_stage_.handle_request(sql_event);
   if (OB_FAIL(rc)) {
     LOG_TRACE("failed to do resolve. rc=%s", strrc(rc));
     return rc;
   }
-
+  //optimize
   rc = optimize_stage_.handle_request(sql_event);
   if (rc != RC::UNIMPLEMENTED && rc != RC::SUCCESS) {
     LOG_TRACE("failed to do optimize. rc=%s", strrc(rc));
     return rc;
   }
-
+  //execute
   rc = execute_stage_.handle_request(sql_event);
   if (OB_FAIL(rc)) {
     LOG_TRACE("failed to do execute. rc=%s", strrc(rc));

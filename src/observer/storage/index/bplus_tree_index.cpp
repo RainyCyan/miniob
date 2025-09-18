@@ -17,6 +17,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/table/table.h"
 #include "storage/db/db.h"
 
+#include "storage/common/meta_util.h"
+
 BplusTreeIndex::~BplusTreeIndex() noexcept { close(); }
 
 RC BplusTreeIndex::create(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta)
@@ -44,6 +46,25 @@ RC BplusTreeIndex::create(Table *table, const char *file_name, const IndexMeta &
   return RC::SUCCESS;
 }
 
+// by ywm,这里不实现b+tree 删除，调用bplustreehandler的drop方法
+RC BplusTreeIndex::drop()
+{
+  RC rc;
+  if (inited_) {
+    close();
+    // todo,log_handler,bpm,index_file
+
+    BufferPoolManager &bpm = table_->db()->buffer_pool_manager();
+    string index_file      = table_index_file(table_->db()->path().c_str(), table_->name(), this->index_meta_.name());
+
+    index_handler_.drop(table_->db()->log_handler(),bpm, index_file.c_str());
+    rc      = RC::SUCCESS;
+  } else {
+    return RC::NOT_EXIST;
+  }
+  return rc;
+}
+
 RC BplusTreeIndex::open(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta)
 {
   if (inited_) {
@@ -55,7 +76,7 @@ RC BplusTreeIndex::open(Table *table, const char *file_name, const IndexMeta &in
   Index::init(index_meta, field_meta);
 
   BufferPoolManager &bpm = table->db()->buffer_pool_manager();
-  RC rc = index_handler_.open(table->db()->log_handler(), bpm, file_name);
+  RC                 rc  = index_handler_.open(table->db()->log_handler(), bpm, file_name);
   if (RC::SUCCESS != rc) {
     LOG_WARN("Failed to open index_handler, file_name:%s, index:%s, field:%s, rc:%s",
         file_name, index_meta.name(), index_meta.field(), strrc(rc));

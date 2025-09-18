@@ -15,7 +15,6 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/meta_util.h"
 #include "storage/db/db.h"
 
-
 HeapTableEngine::~HeapTableEngine()
 {
   if (record_handler_ != nullptr) {
@@ -61,7 +60,7 @@ RC HeapTableEngine::insert_record(Record &record)
   return rc;
 }
 
-RC HeapTableEngine::insert_chunk(const Chunk& chunk)
+RC HeapTableEngine::insert_chunk(const Chunk &chunk)
 {
   RC rc = RC::SUCCESS;
   rc    = record_handler_->insert_chunk(chunk, table_meta_->record_size());
@@ -106,7 +105,7 @@ RC HeapTableEngine::delete_record(const Record &record)
 RC HeapTableEngine::get_record_scanner(RecordScanner *&scanner, Trx *trx, ReadWriteMode mode)
 {
   scanner = new HeapRecordScanner(table_, *data_buffer_pool_, trx, db_->log_handler(), mode, nullptr);
-  RC rc = scanner->open_scan();
+  RC rc   = scanner->open_scan();
   if (rc != RC::SUCCESS) {
     LOG_ERROR("failed to open scanner. rc=%s", strrc(rc));
   }
@@ -151,7 +150,7 @@ RC HeapTableEngine::create_index(Trx *trx, const FieldMeta *field_meta, const ch
 
   // 遍历当前的所有数据，插入这个索引
   RecordScanner *scanner = nullptr;
-  rc = get_record_scanner(scanner, trx, ReadWriteMode::READ_ONLY);
+  rc                     = get_record_scanner(scanner, trx, ReadWriteMode::READ_ONLY);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create scanner while creating index. table=%s, index=%s, rc=%s", 
              table_meta_->name(), index_name, strrc(rc));
@@ -221,6 +220,68 @@ RC HeapTableEngine::create_index(Trx *trx, const FieldMeta *field_meta, const ch
   return rc;
 }
 
+// by ywm ,drop_index impl
+RC HeapTableEngine::drop_index(Trx *trx, const char *index_name)
+{
+  // check wether index_name is_blank
+  if (common::is_blank(index_name)) {
+    LOG_INFO("Invalid input arguments, table name is %s, index_name is blank", table_meta_->name());
+    return RC::INVALID_ARGUMENT;
+  }
+
+  auto index = find_index(index_name);
+  if (nullptr == index) {
+    LOG_INFO("Index isn't exist,index name is %s",index_name);
+    return RC::INVALID_ARGUMENT;
+  }
+
+  RC rc = index->drop();
+  indexes_.erase(std::remove(indexes_.begin(),indexes_.end(),index),indexes_.end());
+  //don't forget to remove index from indexes
+  // std::remove(indexes_.begin(),indexes_.end(),index);
+  // remove 不改变vector的容量和大小，所以用swap和pop_back()
+  TableMeta new_table_meta(*table_meta_);
+  rc = new_table_meta.remove_index(index->index_meta());
+  //also,需要处理table_meta中的index_meta以及磁盘文件
+    /// 2. 创建临时元数据文件并写入新的元数据
+  string tmp_file = table_meta_file(db_->path().c_str(), table_meta_->name()) + ".tmp";
+  fstream fs;
+  fs.open(tmp_file, ios_base::out | ios_base::binary | ios_base::trunc);
+  if (!fs.is_open()) {
+    LOG_ERROR("Failed to open temporary file for write. file name=%s, errmsg=%s", 
+              tmp_file.c_str(), strerror(errno));
+    return RC::IOERR_OPEN;
+  }
+  
+  if (new_table_meta.serialize(fs) < 0) {
+    LOG_ERROR("Failed to serialize new table meta to file: %s. sys err=%d:%s", 
+              tmp_file.c_str(), errno, strerror(errno));
+    fs.close();
+    remove(tmp_file.c_str()); // 清理临时文件
+    return RC::IOERR_WRITE;
+  }
+  fs.close();
+
+  /// 3. 原子性地替换元数据文件
+  string meta_file = table_meta_file(db_->path().c_str(), table_meta_->name());
+  int ret = rename(tmp_file.c_str(), meta_file.c_str());
+  if (ret != 0) {
+    LOG_ERROR("Failed to rename tmp meta file (%s) to normal meta file (%s) while deleting index (%s) from table (%s). "
+              "system error=%d:%s",
+              tmp_file.c_str(), meta_file.c_str(), index_name, table_meta_->name(), errno, strerror(errno));
+    remove(tmp_file.c_str()); // 清理临时文件
+    return RC::IOERR_WRITE;
+  }
+
+  /// 4. 更新内存中的元数据
+  table_meta_->swap(new_table_meta);
+  
+  delete index;
+  LOG_INFO("Successfully drop an index(%s)",index_name);
+
+  return rc;
+}
+
 RC HeapTableEngine::insert_entry_of_indexes(const char *record, const RID &rid)
 {
   RC rc = RC::SUCCESS;
@@ -251,6 +312,11 @@ RC HeapTableEngine::sync()
 {
   RC rc = RC::SUCCESS;
   for (Index *index : indexes_) {
+    if(!index)
+    {
+      LOG_WARN("遇到delete index");
+      continue;
+    }
     rc = index->sync();
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Failed to flush index's pages. table=%s, index=%s, rc=%d:%s",

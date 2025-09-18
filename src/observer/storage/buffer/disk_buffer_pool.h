@@ -331,6 +331,9 @@ public:
   RC open_file(LogHandler &log_handler, const char *file_name, DiskBufferPool *&bp);
   RC close_file(const char *file_name);
 
+  //by ywm,delete_file
+  RC delete_file(const char *file_name);
+
   RC flush_page(Frame &frame);
 
   BPFrameManager    &get_frame_manager() { return frame_manager_; }

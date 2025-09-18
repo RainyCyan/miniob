@@ -904,6 +904,20 @@ RC BplusTreeHandler::create(LogHandler &log_handler,
   return RC::SUCCESS;
 }
 
+// by ywm,TODO
+RC BplusTreeHandler::drop(LogHandler &log_handler,BufferPoolManager &bpm,const char * file_name)
+{
+  //todo,bpm->drop_file
+  RC rc=bpm.delete_file(file_name);
+  if(OB_FAIL(rc))
+  {
+    LOG_WARN("Failed to Remove index file %s",file_name);
+    return rc;
+  }
+  LOG_INFO("Success to delete index file");
+  return rc;
+}
+
 RC BplusTreeHandler::open(LogHandler &log_handler, BufferPoolManager &bpm, const char *file_name)
 {
   if (disk_buffer_pool_ != nullptr) {

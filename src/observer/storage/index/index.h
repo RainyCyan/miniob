@@ -44,6 +44,13 @@ public:
   {
     return RC::UNSUPPORTED;
   }
+
+  //by ywm,add virtual drop method
+  virtual RC drop()
+  {
+    return RC::UNSUPPORTED;
+  }
+
   virtual RC open(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta)
   {
     return RC::UNSUPPORTED;

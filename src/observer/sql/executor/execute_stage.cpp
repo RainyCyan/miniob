@@ -29,11 +29,12 @@ RC ExecuteStage::handle_request(SQLStageEvent *sql_event)
 {
   RC rc = RC::SUCCESS;
 
+  // 如果存在物理算子
   const unique_ptr<PhysicalOperator> &physical_operator = sql_event->physical_operator();
   if (physical_operator != nullptr) {
     return handle_request_with_physical_operator(sql_event);
   }
-
+  //不存在物理算子的情况
   SessionEvent *session_event = sql_event->session_event();
 
   Stmt *stmt = sql_event->stmt();
