@@ -90,6 +90,9 @@ public:
 
   RC insert_chunk(const Chunk &chunk);
   RC delete_record(const Record &record);
+// by ywm
+  RC make_updated_record(const Record&old_record,Record &new_record,const Value &value, int field_offset);
+  RC update_record(const Record &old_record, const Record &new_record);
 
   RC insert_record_with_trx(Record &record, Trx *trx);
   RC delete_record_with_trx(const Record &record, Trx *trx);

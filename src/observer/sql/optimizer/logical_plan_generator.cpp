@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/delete_logical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
 #include "sql/operator/insert_logical_operator.h"
+#include "sql/operator/update_logical_operator.h"
 #include "sql/operator/join_logical_operator.h"
 #include "sql/operator/logical_operator.h"
 #include "sql/operator/predicate_logical_operator.h"
@@ -33,6 +34,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 #include "sql/stmt/insert_stmt.h"
 #include "sql/stmt/select_stmt.h"
+#include "sql/stmt/update_stmt.h"
 #include "sql/stmt/stmt.h"
 
 #include "sql/expr/expression_iterator.h"
@@ -60,6 +62,12 @@ RC LogicalPlanGenerator::create(Stmt *stmt, unique_ptr<LogicalOperator> &logical
       InsertStmt *insert_stmt = static_cast<InsertStmt *>(stmt);
 
       rc = create_plan(insert_stmt, logical_operator);
+    } break;
+    //by ywm,update
+    case StmtType::UPDATE: {
+      UpdateStmt *update_stmt = static_cast<UpdateStmt *>(stmt);
+
+      rc = create_plan(update_stmt, logical_operator);
     } break;
 
     case StmtType::DELETE: {
@@ -261,6 +269,36 @@ RC LogicalPlanGenerator::create_plan(DeleteStmt *delete_stmt, unique_ptr<Logical
 
   logical_operator = std::move(delete_oper);
   return rc;
+}
+
+//by ywm
+RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, unique_ptr<LogicalOperator> &logical_operator)
+{
+  Table *table = update_stmt->table();
+  // update_stmt->values:Value* -> values:vector<Value>
+  vector<Value>               values(update_stmt->values(), update_stmt->values() + update_stmt->value_amount());
+  FilterStmt                 *filter_stmt = update_stmt->filter_stmt();
+  unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
+
+  // 构造谓词算子
+  unique_ptr<LogicalOperator> predicate_oper;
+  RC                          rc = create_plan(filter_stmt, predicate_oper);
+  if (rc != RC::SUCCESS) {
+    return rc;
+  }
+  // 构造更新算子
+  unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, values, update_stmt->attr_name().c_str()));
+  // 谓词算子add_child(get_table算子),删除算子add_child(谓词算子)
+  if (predicate_oper) {
+    predicate_oper->add_child(std::move(table_get_oper));
+    update_oper->add_child(std::move(predicate_oper));
+  } else {
+    update_oper->add_child(std::move(table_get_oper));
+  }
+
+  logical_operator = std::move(update_oper);
+  // LOG_INFO("LogicalPlanGenrator::create plan");
+  return RC::SUCCESS;
 }
 
 RC LogicalPlanGenerator::create_plan(ExplainStmt *explain_stmt, unique_ptr<LogicalOperator> &logical_operator)

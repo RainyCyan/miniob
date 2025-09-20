@@ -102,6 +102,32 @@ RC HeapTableEngine::delete_record(const Record &record)
   return rc;
 }
 
+//by ywm,update_record
+RC HeapTableEngine::update_record(const Record &old_record,const Record &new_record)
+{
+  // delete old_record
+
+  //insert new_record
+
+    RC rc = RC::SUCCESS;
+
+  // 先删除
+  rc = this->delete_record(old_record);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to delete old record during update. table=%s, rc=%s", table_meta_->name(), strrc(rc));
+    return rc;
+  }
+
+  // 再插入
+  rc = this->insert_record(const_cast<Record&>(new_record));
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to insert new record during update. table=%s, rc=%s", table_meta_->name(), strrc(rc));
+    return rc;
+  }
+
+  return rc;
+}
+
 RC HeapTableEngine::get_record_scanner(RecordScanner *&scanner, Trx *trx, ReadWriteMode mode)
 {
   scanner = new HeapRecordScanner(table_, *data_buffer_pool_, trx, db_->log_handler(), mode, nullptr);
