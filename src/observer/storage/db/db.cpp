@@ -195,10 +195,10 @@ RC Db::drop_table(const char *table_name)
     LOG_ERROR("Failed to drop table %s.", table_name);
     return rc;
   }
-  delete table;
 
   //移除opened_tables_相关项
   opened_tables_.erase(table_name);
+  // delete table;
   LOG_INFO("Successfully drop table %s",table_name);
   return RC::SUCCESS;
 }
