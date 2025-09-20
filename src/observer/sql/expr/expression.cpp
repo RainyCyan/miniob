@@ -91,7 +91,7 @@ RC CastExpr::cast(const Value &value, Value &cast_value) const
 RC CastExpr::get_value(const Tuple &tuple, Value &result) const
 {
   Value value;
-  RC rc = child_->get_value(tuple, value);
+  RC    rc = child_->get_value(tuple, value);
   if (rc != RC::SUCCESS) {
     return rc;
   }
@@ -102,7 +102,7 @@ RC CastExpr::get_value(const Tuple &tuple, Value &result) const
 RC CastExpr::get_column(Chunk &chunk, Column &column)
 {
   Column child_column;
-  RC rc = child_->get_column(chunk, child_column);
+  RC     rc = child_->get_column(chunk, child_column);
   if (rc != RC::SUCCESS) {
     return rc;
   }
@@ -122,7 +122,7 @@ RC CastExpr::get_column(Chunk &chunk, Column &column)
 RC CastExpr::try_get_value(Value &result) const
 {
   Value value;
-  RC rc = child_->try_get_value(value);
+  RC    rc = child_->try_get_value(value);
   if (rc != RC::SUCCESS) {
     return rc;
   }
@@ -134,14 +134,19 @@ RC CastExpr::try_get_value(Value &result) const
 
 ComparisonExpr::ComparisonExpr(CompOp comp, unique_ptr<Expression> left, unique_ptr<Expression> right)
     : comp_(comp), left_(std::move(left)), right_(std::move(right))
-{
-}
+{}
 
 ComparisonExpr::~ComparisonExpr() {}
 
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
-  RC  rc         = RC::SUCCESS;
+  RC rc = RC::SUCCESS;
+  if (comp_ == LIKE_OP || comp_ == NOT_LIKE_OP) {
+    // ASSERT(left.is_str() && right.is_str(), "LIKE ONLY SUPPORT STRING TYPE!");
+    result = comp_ == LIKE_OP ? left.like_match(right) : !left.like_match(right);
+    return rc;
+  }
+
   int cmp_result = left.compare(right);
   result         = false;
   switch (comp_) {
@@ -163,6 +168,13 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     case GREAT_THAN: {
       result = (cmp_result > 0);
     } break;
+    // by ywm,add LIKE_OP/NOT_LIKE_OP
+    case LIKE_OP: {
+      result = cmp_result;
+    } break;
+    case NOT_LIKE_OP: {
+      result = cmp_result;
+    } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
       rc = RC::INTERNAL;
@@ -175,8 +187,8 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
 RC ComparisonExpr::try_get_value(Value &cell) const
 {
   if (left_->type() == ExprType::VALUE && right_->type() == ExprType::VALUE) {
-    ValueExpr *  left_value_expr  = static_cast<ValueExpr *>(left_.get());
-    ValueExpr *  right_value_expr = static_cast<ValueExpr *>(right_.get());
+    ValueExpr   *left_value_expr  = static_cast<ValueExpr *>(left_.get());
+    ValueExpr   *right_value_expr = static_cast<ValueExpr *>(right_.get());
     const Value &left_cell        = left_value_expr->get_value();
     const Value &right_cell       = right_value_expr->get_value();
 
@@ -250,10 +262,10 @@ RC ComparisonExpr::eval(Chunk &chunk, vector<uint8_t> &select)
       rows = left_column.count();
     }
     for (int i = 0; i < rows; ++i) {
-      Value left_val = left_column.get_value(i);
+      Value left_val  = left_column.get_value(i);
       Value right_val = right_column.get_value(i);
-      bool        result   = false;
-      rc                   = compare_value(left_val, right_val, result);
+      bool  result    = false;
+      rc              = compare_value(left_val, right_val, result);
       if (rc != RC::SUCCESS) {
         LOG_WARN("failed to compare tuple cells. rc=%s", strrc(rc));
         return rc;
@@ -346,8 +358,7 @@ AttrType ArithmeticExpr::value_type() const
     return left_->value_type();
   }
 
-  if ((left_->value_type() == AttrType::INTS) &&
-   (right_->value_type() == AttrType::INTS) &&
+  if ((left_->value_type() == AttrType::INTS) && (right_->value_type() == AttrType::INTS) &&
       arithmetic_type_ != Type::DIV) {
     return AttrType::INTS;
   }

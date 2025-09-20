@@ -123,6 +123,8 @@ FORMAT                                  RETURN_TOKEN(FORMAT);
 PRIMARY                                 RETURN_TOKEN(PRIMARY);
 KEY                                     RETURN_TOKEN(KEY);
 ANALYZE                                 RETURN_TOKEN(ANALYZE);
+NOT                                     RETURN_TOKEN(NOT);
+LIKE                                    RETURN_TOKEN(LIKE);
 FIELDS                                  RETURN_TOKEN(FIELDS);
 TERMINATED                              RETURN_TOKEN(TERMINATED);
 ENCLOSED                                RETURN_TOKEN(ENCLOSED);
@@ -138,6 +140,7 @@ ENCLOSED                                RETURN_TOKEN(ENCLOSED);
 "<"                                     RETURN_TOKEN(LT);
 ">="                                    RETURN_TOKEN(GE);
 ">"                                     RETURN_TOKEN(GT);
+
 
 "+" |
 "-" |

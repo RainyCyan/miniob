@@ -13,7 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "common/value.h"
-
+#include <regex>
 #include "common/lang/comparator.h"
 #include "common/lang/exception.h"
 #include "common/lang/sstream.h"
@@ -271,6 +271,36 @@ string Value::to_string() const
 int Value::compare(const Value &other) const
 {
   return DataType::type_instance(this->attr_type_)->compare(*this, other);
+}
+
+//by ywm,add like_match
+// add like_match here
+bool Value::like_match(const Value &other) const
+{
+  // 获取左右操作数的字符串
+  std::string pattern = other.data();
+  std::string text    = this->data();
+
+  // 将SQL的LIKE模式转换为正则表达式
+  // 将 % 转换为 .*，将 _ 转换为 .
+  std::string regexPattern;
+  for (char c : pattern) {
+    if (c == '%') {
+      regexPattern += ".*";
+    } else if (c == '_') {
+      regexPattern += ".";
+    } else {
+      // 转义特殊字符
+      if (std::string("()[]{}^$|.*+?\\").find(c) != std::string::npos) {
+        regexPattern += '\\';
+      }
+      regexPattern += c;
+    }
+  }
+
+  // 使用正则表达式匹配
+  std::regex regexObj(regexPattern);
+  return std::regex_match(text, regexObj);
 }
 
 int Value::get_int() const

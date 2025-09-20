@@ -98,6 +98,7 @@ public:
 
   int compare(const Value &other) const;
 
+  bool like_match(const Value &other) const;
   char *data() const;
 
   int      length() const { return length_; }
