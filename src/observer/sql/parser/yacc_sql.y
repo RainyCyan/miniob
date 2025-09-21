@@ -120,6 +120,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         NE
         NOT
         LIKE
+        IS
+        NULL_T
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -140,6 +142,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   char *                                     cstring;
   int                                        number;
   float                                      floats;
+  bool                                       boolean;
 }
 
 %destructor { delete $$; } <condition>
@@ -207,6 +210,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <sql_node>            command_wrapper
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
+%type <boolean>             null_option
+
 
 %left '+' '-'
 %left '*' '/'
@@ -361,19 +366,21 @@ attr_def_list:
     ;
     
 attr_def:
-    ID type LBRACE number RBRACE 
+    ID type LBRACE number RBRACE null_option
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = $4;
+      $$->nullable=$6;
     }
-    | ID type
+    | ID type null_option
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = 4;
+      $$->nullable=$3;
     }
     ;
 number:
@@ -386,6 +393,15 @@ type:
     | VECTOR_T { $$ = static_cast<int>(AttrType::VECTORS); }
     | DATE_T   { $$ = static_cast<int>(AttrType::DATES); }
     ;
+
+null_option:
+    /*empty*/
+    {
+      //默认为true
+      $$=true;
+    }
+    | NULL_T {$$=true;}
+    | NOT NULL_T {$$=false;}
 primary_key:
     /* empty */
     {
@@ -449,6 +465,10 @@ value:
       char *tmp = common::substr($1,1,strlen($1)-2);
       $$ = new Value(tmp);
       free(tmp);
+    }
+    |NULL_T {
+      $$=new Value();
+      $$->set_null();
     }
     ;
 storage_format:
