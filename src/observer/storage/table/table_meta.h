@@ -41,12 +41,15 @@ public:
 
   RC add_index(const IndexMeta &index);
 
-  //by ywm,delete_index from table_meta
+  // by ywm,delete_index from table_meta
   RC remove_index(const IndexMeta &index_meta);
 
 public:
   int32_t             table_id() const { return table_id_; }
   const char         *name() const;
+  //add null field get/set
+  FieldMeta          *null_field() { return &trx_fields_.front(); }
+  // void set_null_field(FieldMeta* null_field){null_field_=null_field;}
   const FieldMeta    *trx_field() const;
   const FieldMeta    *field(int index) const;
   const FieldMeta    *field(const char *name) const;
@@ -79,7 +82,11 @@ protected:
   int32_t           table_id_ = -1;
   string            name_;
   vector<FieldMeta> trx_fields_;
-  vector<FieldMeta> fields_;  // 包含sys_fields
+  // new added by ywm,user_fields_
+  // FieldMeta        *null_field_;
+  // vector<FieldMeta> user_fields_;
+  //
+  vector<FieldMeta> fields_;  // 包含sys_fields,null_field_,user_fields_
   vector<IndexMeta> indexes_;
   vector<string>    primary_keys_;
   StorageFormat     storage_format_;

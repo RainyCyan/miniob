@@ -31,6 +31,7 @@ static const Json::StaticString FIELD_PRIMARY_KEYS("primary_keys");
 TableMeta::TableMeta(const TableMeta &other)
     : table_id_(other.table_id_),
       name_(other.name_),
+      trx_fields_(other.trx_fields_),
       fields_(other.fields_),
       indexes_(other.indexes_),
       storage_format_(other.storage_format_),
@@ -41,6 +42,7 @@ TableMeta::TableMeta(const TableMeta &other)
 void TableMeta::swap(TableMeta &other) noexcept
 {
   name_.swap(other.name_);
+  trx_fields_.swap(other.trx_fields_);
   fields_.swap(other.fields_);
   indexes_.swap(other.indexes_);
   std::swap(record_size_, other.record_size_);
@@ -64,32 +66,44 @@ RC TableMeta::init(int32_t table_id, const char *name, const vector<FieldMeta> *
 
   int field_offset  = 0;
   int trx_field_num = 0;
+  int fields_num=attributes.size()+1+(trx_fields==nullptr?0:trx_fields->size());
+
+  fields_.resize(fields_num);
+  // 临时处理，将null_field看作trx_field对待
+  int null_field_len=(attributes.size()+7)/8;//one bit for one user field
+  const FieldMeta null_field=FieldMeta("_null",AttrType::CHARS,field_offset,null_field_len,false,-1,false);
+  fields_[0]=null_field;
+  field_offset+=null_field.len();
 
   if (trx_fields != nullptr) {
     trx_fields_ = *trx_fields;
 
-    fields_.resize(attributes.size() + trx_fields->size());
+    // fields_.resize(attributes.size() + trx_fields->size()+1);
     for (size_t i = 0; i < trx_fields->size(); i++) {
       const FieldMeta &field_meta = (*trx_fields)[i];
-      fields_[i]                  = FieldMeta(field_meta.name(),
+      fields_[i+1]                  = FieldMeta(field_meta.name(),
           field_meta.type(),
           field_offset,
           field_meta.len(),
           false /*visible*/,
-          field_meta.field_id());
+          field_meta.field_id(),
+          false);
       field_offset += field_meta.len();
     }
 
     trx_field_num = static_cast<int>(trx_fields->size());
-  } else {
-    fields_.resize(attributes.size());
   }
+  // else {
+  //   fields_.resize(attributes.size()+1);
+  // }
+  trx_fields_.emplace(trx_fields->begin(),null_field);
+  trx_field_num++;
 
   for (size_t i = 0; i < attributes.size(); i++) {
     const AttrInfoSqlNode &attr_info = attributes[i];
     // `i` is the col_id of fields[i]
     rc = fields_[i + trx_field_num].init(
-        attr_info.name.c_str(), attr_info.type, field_offset, attr_info.length, true /*visible*/, i);
+        attr_info.name.c_str(), attr_info.type, field_offset, attr_info.length, true /*visible*/, i,attr_info.nullable);
     if (OB_FAIL(rc)) {
       LOG_ERROR("Failed to init field meta. table name=%s, field name: %s", name, attr_info.name.c_str());
       return rc;

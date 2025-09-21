@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/parse.h"
 #include "common/value.h"
 #include "storage/record/record.h"
+#include "common/lang/bitmap.h"
 
 class Table;
 
@@ -167,7 +168,14 @@ public:
     speces_.clear();
   }
 
-  void set_record(Record *record) { this->record_ = record; }
+  void set_record(Record *record)
+  {
+    this->record_ = record;
+    // set bitmap_
+    auto null_field_meta = speces_.front()->field().meta();
+    ASSERT(nullptr != null_field_meta && AttrType::CHARS == null_field_meta->type(), "RowTuple get null field failed!");
+    bitmap_.init(record->data() + null_field_meta->offset(), null_field_meta->len());
+  }
 
   void set_schema(const Table *table, const vector<FieldMeta> *fields)
   {
@@ -193,6 +201,13 @@ public:
       return RC::INVALID_ARGUMENT;
     }
 
+    // add null condition here
+    if (bitmap_.get_bit(index - 1)) {
+      cell.reset();
+      cell.set_null();
+      return RC::SUCCESS;
+    }
+    // common condition
     FieldExpr       *field_expr = speces_[index];
     const FieldMeta *field_meta = field_expr->field().meta();
     cell.reset();
@@ -247,6 +262,8 @@ private:
   Record             *record_ = nullptr;
   const Table        *table_  = nullptr;
   vector<FieldExpr *> speces_;
+  // by ywm,add bitmap_ for every tuple(record)
+  common::Bitmap bitmap_;  // null bitmap
 };
 
 /**

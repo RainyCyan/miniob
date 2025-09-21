@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/lang/span.h"
 #include "common/lang/algorithm.h"
+#include "common/lang/bitmap.h"
 #include "common/log/log.h"
 #include "common/global_context.h"
 #include "storage/db/db.h"
@@ -284,9 +285,30 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   char *record_data = (char *)malloc(record_size);
   memset(record_data, 0, record_size);
 
+  //get null_bitmap
+  const FieldMeta* null_field_meta=table_meta_.null_field();
+  common::Bitmap null_bitmap(record_data+null_field_meta->offset(),null_field_meta->len()*8);
+  null_bitmap.clear_bits();
+
   for (int i = 0; i < value_num && OB_SUCC(rc); i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value     &value = values[i];
+
+    //null value condition
+    if(value.is_null())
+    {
+      //check field字段
+      if(field->nullable())
+      {
+        //set null_bitmap
+        null_bitmap.set_bit(i);
+        //跳过cast_to和set_value_to_record
+        continue;
+      }else{
+        LOG_WARN("value is null but the field is not nullable");
+        return RC::INVALID_ARGUMENT;
+      }
+    }
     if (field->type() != value.attr_type()) {
       Value real_value;
       rc = Value::cast_to(value, field->type(), real_value);

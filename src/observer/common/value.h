@@ -94,7 +94,7 @@ public:
   void set_value(const Value &value);
   void set_boolean(bool val);
   void set_null(){this->attr_type_=AttrType::NULLS;}
-  bool is_null(){return this->attr_type_==AttrType::NULLS;}
+  bool is_null()const{return this->attr_type_==AttrType::NULLS;}
 
   string to_string() const;
 
@@ -124,7 +124,7 @@ public:
   void set_empty_string(int len);
   void set_string_from_other(const Value &other);
   void set_date(int y, int m, int d);
-  void set_date(int val);
+  // void set_date(int val);
 
 private:
   AttrType attr_type_ = AttrType::UNDEFINED;

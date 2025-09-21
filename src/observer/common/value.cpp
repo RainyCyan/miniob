@@ -228,6 +228,9 @@ void Value::set_value(const Value &value)
     // case AttrType::DATES: {
     //   set_date(value.get_int());
     // } break;
+    case AttrType::NULLS:{
+      set_null();
+    }break;
     default: {
       ASSERT(false, "got an invalid value type");
     } break;
@@ -260,6 +263,12 @@ string Value::to_string() const
 {
   string res;
   LOG_INFO("call value.to_string");
+  //by ywm,add null.to_string
+  if(this->attr_type_==AttrType::NULLS)
+  {
+    res="NULL";
+    return res;
+  }
   RC     rc = DataType::type_instance(this->attr_type_)->to_string(*this, res);
   if (OB_FAIL(rc)) {
     LOG_WARN("failed to convert value to string. type=%s", attr_type_to_string(this->attr_type_));
