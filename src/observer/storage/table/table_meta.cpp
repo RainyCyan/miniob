@@ -96,7 +96,7 @@ RC TableMeta::init(int32_t table_id, const char *name, const vector<FieldMeta> *
   // else {
   //   fields_.resize(attributes.size()+1);
   // }
-  trx_fields_.emplace(trx_fields->begin(),null_field);
+  trx_fields_.emplace(trx_fields_.begin(),null_field);
   trx_field_num++;
 
   for (size_t i = 0; i < attributes.size(); i++) {
