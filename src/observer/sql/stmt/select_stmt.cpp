@@ -15,7 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/select_stmt.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
-#include "sql/stmt/filter_stmt.h"
+// #include "sql/stmt/filter_stmt.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 #include "sql/parser/expression_binder.h"
@@ -23,13 +23,8 @@ See the Mulan PSL v2 for more details. */
 using namespace std;
 using namespace common;
 
-SelectStmt::~SelectStmt()
-{
-  if (nullptr != filter_stmt_) {
-    delete filter_stmt_;
-    filter_stmt_ = nullptr;
-  }
-}
+SelectStmt::~SelectStmt()=default;
+
 
 RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
 {
@@ -63,8 +58,8 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
 
   // collect query fields in `select` statement
   vector<unique_ptr<Expression>> bound_expressions;
-  ExpressionBinder expression_binder(binder_context);
-  
+  ExpressionBinder               expression_binder(binder_context);
+
   for (unique_ptr<Expression> &expression : select_sql.expressions) {
     RC rc = expression_binder.bind_expression(expression, bound_expressions);
     if (OB_FAIL(rc)) {
@@ -82,31 +77,40 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     }
   }
 
-  Table *default_table = nullptr;
-  if (tables.size() == 1) {
-    default_table = tables[0];
+  // Table *default_table = nullptr;
+  // if (tables.size() == 1) {
+  //   default_table = tables[0];
+  // }
+
+  // by ywm,refactor:replace filter stmt using expression
+  vector<unique_ptr<Expression>> filter_expressions;
+  RC                         rc = expression_binder.bind_expression(select_sql.condition, filter_expressions);
+  if (OB_FAIL(rc)) {
+    LOG_INFO("bind expression failed. rc=%s", strrc(rc));
+    return rc;
   }
 
   // create filter statement in `where` statement
-  FilterStmt *filter_stmt = nullptr;
-  RC          rc          = FilterStmt::create(db,
-      default_table,
-      &table_map,
-      select_sql.conditions.data(),
-      static_cast<int>(select_sql.conditions.size()),
-      filter_stmt);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("cannot construct filter stmt");
-    return rc;
-  }
+  // FilterStmt *filter_stmt = nullptr;
+  // RC          rc          = FilterStmt::create(db,
+  //     default_table,
+  //     &table_map,
+  //     select_sql.conditions.data(),
+  //     static_cast<int>(select_sql.conditions.size()),
+  //     filter_stmt);
+  // if (rc != RC::SUCCESS) {
+  //   LOG_WARN("cannot construct filter stmt");
+  //   return rc;
+  // }
 
   // everything alright
   SelectStmt *select_stmt = new SelectStmt();
 
   select_stmt->tables_.swap(tables);
   select_stmt->query_expressions_.swap(bound_expressions);
-  select_stmt->filter_stmt_ = filter_stmt;
+  select_stmt->filter_expressions_.swap(filter_expressions);
+  // select_stmt->filter_stmt_ = filter_stmt;
   select_stmt->group_by_.swap(group_by_expressions);
-  stmt                      = select_stmt;
+  stmt = select_stmt;
   return RC::SUCCESS;
 }

@@ -16,7 +16,6 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/sys/rc.h"
 #include "sql/stmt/stmt.h"
-#include "sql/stmt/filter_stmt.h"
 #include "storage/table/table.h"
 
 #include <string>
@@ -31,22 +30,22 @@ class UpdateStmt : public Stmt
 {
 public:
   UpdateStmt() = default;
-  UpdateStmt(Table *table,Value *values, int value_amount, FilterStmt* filter_stmt,std::string attr_name);
+  UpdateStmt(Table *table,Value *values, int value_amount, vector<unique_ptr<Expression>> &filter_expressions,std::string attr_name);
   StmtType type() const override { return StmtType::UPDATE; }
 public:
-  static RC create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt);
+  static RC create(Db *db, UpdateSqlNode &update_sql, Stmt *&stmt);
 
 public:
   Table *table() const { return table_; }
   Value *values() const { return values_; }
   int    value_amount() const { return value_amount_; }
-  FilterStmt *filter_stmt() const { return filter_stmt_; }
   std::string attr_name() const {return attr_name_;}
+  vector<unique_ptr<Expression>> &filter_expressions() { return filter_expressions_; }
 private:
   Table      *table_        = nullptr;
   Value      *values_       = nullptr;
   int         value_amount_ = 0;
-  //add two members:filter_stmt_ and attr_name_
-  FilterStmt *filter_stmt_  = nullptr;
+  //add two members:filter_expressions_ and attr_name_
+  vector<unique_ptr<Expression>> filter_expressions_;
   std::string attr_name_;
 };

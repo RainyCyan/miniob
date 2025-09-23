@@ -141,6 +141,10 @@ ComparisonExpr::~ComparisonExpr() {}
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
   RC rc = RC::SUCCESS;
+  if (left.is_null() || right.is_null()) {
+    result = false;
+    return rc;
+  }
   if (comp_ == LIKE_OP || comp_ == NOT_LIKE_OP) {
     // ASSERT(left.is_str() && right.is_str(), "LIKE ONLY SUPPORT STRING TYPE!");
     result = comp_ == LIKE_OP ? left.like_match(right) : !left.like_match(right);
@@ -358,6 +362,10 @@ AttrType ArithmeticExpr::value_type() const
     return left_->value_type();
   }
 
+  //by ywm,add nulls case
+  if (left_->value_type() == AttrType::NULLS || right_->value_type() == AttrType::NULLS) {
+    return AttrType::NULLS;
+  }
   if ((left_->value_type() == AttrType::INTS) && (right_->value_type() == AttrType::INTS) &&
       arithmetic_type_ != Type::DIV) {
     return AttrType::INTS;
@@ -387,7 +395,14 @@ RC ArithmeticExpr::calc_value(const Value &left_value, const Value &right_value,
     } break;
 
     case Type::DIV: {
-      Value::divide(left_value, right_value, value);
+      // Value::divide(left_value, right_value, value);
+      if (right_value.get_int() == 0) {
+        // NOTE: 设置为整数最大值是不正确的。通常的做法是设置为NULL，设置value_type为MAX
+        LOG_DEBUG("call divide 0");
+        value.set_null();
+      } else {
+        Value::divide(left_value, right_value, value);
+      }
     } break;
 
     case Type::NEGATIVE: {
@@ -476,16 +491,20 @@ RC ArithmeticExpr::get_value(const Tuple &tuple, Value &value) const
 
   Value left_value;
   Value right_value;
-
-  rc = left_->get_value(tuple, left_value);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
-    return rc;
+  if (left_) {
+    rc = left_->get_value(tuple, left_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+      return rc;
+    }
   }
-  rc = right_->get_value(tuple, right_value);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
-    return rc;
+  // 防止负数情况的出现
+  if (right_) {
+    rc = right_->get_value(tuple, right_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
+      return rc;
+    }
   }
   return calc_value(left_value, right_value, value);
 }

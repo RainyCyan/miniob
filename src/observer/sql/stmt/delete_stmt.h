@@ -27,18 +27,19 @@ class FilterStmt;
 class DeleteStmt : public Stmt
 {
 public:
-  DeleteStmt(Table *table, FilterStmt *filter_stmt);
+  DeleteStmt(Table *table,vector<unique_ptr<Expression>> &filter_expressions); 
+  
   ~DeleteStmt() override;
 
   Table      *table() const { return table_; }
-  FilterStmt *filter_stmt() const { return filter_stmt_; }
 
   StmtType type() const override { return StmtType::DELETE; }
 
+  vector<unique_ptr<Expression>> &filter_expressions() { return filter_expressions_; }
 public:
-  static RC create(Db *db, const DeleteSqlNode &delete_sql, Stmt *&stmt);
+  static RC create(Db *db, DeleteSqlNode &delete_sql, Stmt *&stmt);
 
 private:
   Table      *table_       = nullptr;
-  FilterStmt *filter_stmt_ = nullptr;
+  vector<unique_ptr<Expression>> filter_expressions_;
 };

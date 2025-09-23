@@ -16,17 +16,18 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
+#include "sql/parser/expression_binder.h"
 
-InsertStmt::InsertStmt(Table *table, const Value *values, int value_amount)
+InsertStmt::InsertStmt(Table *table, vector<Value> &values, int value_amount)
     : table_(table), values_(values), value_amount_(value_amount)
 {}
 
-RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
+RC InsertStmt::create(Db *db,  InsertSqlNode &inserts, Stmt *&stmt)
 {
   const char *table_name = inserts.relation_name.c_str();
-  if (nullptr == db || nullptr == table_name || inserts.values.empty()) {
+  if (nullptr == db || nullptr == table_name || inserts.exprs.empty()) {
     LOG_WARN("invalid argument. db=%p, table_name=%p, value_num=%d",
-        db, table_name, static_cast<int>(inserts.values.size()));
+        db, table_name, static_cast<int>(inserts.exprs.size()));
     return RC::INVALID_ARGUMENT;
   }
 
@@ -37,9 +38,27 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
 
+  //先不考虑复杂情况的插入，不绑定expression
+  // BinderContext binder_context;
+  // binder_context.add_table(table);
+  // ExpressionBinder expression_binder(binder_context);
+  vector<Value>    trans_values;
+
+  for (auto &expr : inserts.exprs) {
+    // LOG_INFO("expr->type:,%d",expr->type());
+    // vector<unique_ptr<Expression>> value_expressions;
+    // RC                             rc = expression_binder.bind_expression(expr, value_expressions);
+    // if (OB_FAIL(rc)) {
+    //   LOG_INFO("bind expression failed. rc=%s", strrc(rc));
+    //   return rc;
+    // }
+    Value val;
+    expr->try_get_value(val);
+    trans_values.emplace_back(val);
+  }
   // check the fields number
-  const Value     *values     = inserts.values.data();
-  const int        value_num  = static_cast<int>(inserts.values.size());
+  // const Value     *values     = trans_values.data();
+  const int        value_num  = trans_values.size();
   const TableMeta &table_meta = table->table_meta();
   const int        field_num  = table_meta.field_num() - table_meta.sys_field_num();
   if (field_num != value_num) {
@@ -48,6 +67,6 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
   }
 
   // everything alright
-  stmt = new InsertStmt(table, values, value_num);
+  stmt = new InsertStmt(table, trans_values,value_num);
   return RC::SUCCESS;
 }
