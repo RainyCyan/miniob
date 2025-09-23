@@ -209,31 +209,58 @@ RC ComparisonExpr::try_get_value(Value &cell) const
   return RC::INVALID_ARGUMENT;
 }
 
+// RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
+// {
+//   Value left_value;
+//   Value right_value;
+
+//   RC rc = left_->get_value(tuple, left_value);
+//   if (rc != RC::SUCCESS) {
+//     LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+//     return rc;
+//   }
+//   rc = right_->get_value(tuple, right_value);
+//   if (rc != RC::SUCCESS) {
+//     LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
+//     return rc;
+//   }
+
+//   bool bool_value = false;
+
+//   rc = compare_value(left_value, right_value, bool_value);
+//   if (rc == RC::SUCCESS) {
+//     value.set_boolean(bool_value);
+//   }
+//   return rc;
+// }
 RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 {
   Value left_value;
   Value right_value;
-
-  RC rc = left_->get_value(tuple, left_value);
+  RC    rc = RC::SUCCESS;
+  if (left_)
+    rc = left_->get_value(tuple, left_value);
+  LOG_DEBUG("%s",left_value.to_string().c_str());
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
     return rc;
   }
-  rc = right_->get_value(tuple, right_value);
+  if (right_)
+    rc = right_->get_value(tuple, right_value);
+  LOG_DEBUG("%s",right_value.to_string().c_str());
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
     return rc;
   }
 
   bool bool_value = false;
-
+  LOG_DEBUG("right val,%s",right_value.to_string().c_str());
   rc = compare_value(left_value, right_value, bool_value);
   if (rc == RC::SUCCESS) {
     value.set_boolean(bool_value);
   }
   return rc;
 }
-
 RC ComparisonExpr::eval(Chunk &chunk, vector<uint8_t> &select)
 {
   RC     rc = RC::SUCCESS;
@@ -362,7 +389,7 @@ AttrType ArithmeticExpr::value_type() const
     return left_->value_type();
   }
 
-  //by ywm,add nulls case
+  // by ywm,add nulls case
   if (left_->value_type() == AttrType::NULLS || right_->value_type() == AttrType::NULLS) {
     return AttrType::NULLS;
   }
@@ -379,6 +406,11 @@ RC ArithmeticExpr::calc_value(const Value &left_value, const Value &right_value,
   RC rc = RC::SUCCESS;
 
   const AttrType target_type = value_type();
+  // add null check
+  if (target_type == AttrType::NULLS || left_value.is_null() || right_value.is_null()) {
+    value.set_null();
+    return rc;
+  }
   value.set_type(target_type);
 
   switch (arithmetic_type_) {

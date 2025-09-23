@@ -48,7 +48,7 @@ int DateType::compare(const Value &left, const Value &right) const
   }
   if (right.attr_type() == AttrType::CHARS) {
     Value right_cast_val;
-    cast_to(right, AttrType::DATES, right_cast_val);
+    Value::cast_to(right, AttrType::DATES, right_cast_val);
     return common::compare_int((void *)&left.value_.int_value_, (void *)&right_cast_val.value_.int_value_);
   }
 
