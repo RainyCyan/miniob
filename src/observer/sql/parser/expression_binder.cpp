@@ -222,6 +222,91 @@ RC ExpressionBinder::bind_cast_expression(
   return RC::SUCCESS;
 }
 
+// RC ExpressionBinder::bind_comparison_expression(
+//     unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
+// {
+//   if (nullptr == expr) {
+//     return RC::SUCCESS;
+//   }
+
+//   auto comparison_expr = static_cast<ComparisonExpr *>(expr.get());
+
+//   vector<unique_ptr<Expression>> child_bound_expressions;
+//   unique_ptr<Expression>        &left_expr  = comparison_expr->left();
+//   unique_ptr<Expression>        &right_expr = comparison_expr->right();
+
+//   RC rc = bind_expression(left_expr, child_bound_expressions);
+//   if (rc != RC::SUCCESS) {
+//     return rc;
+//   }
+
+//   if (child_bound_expressions.size() != 1) {
+//     LOG_WARN("invalid left children number of comparison expression: %d", child_bound_expressions.size());
+//     return RC::INVALID_ARGUMENT;
+//   }
+
+//   unique_ptr<Expression> &left = child_bound_expressions[0];
+
+//   if (left.get() != left_expr.get()) {
+//     left_expr.reset(left.release());
+//   }
+//   child_bound_expressions.clear();
+//   rc = bind_expression(right_expr, child_bound_expressions);
+//   if (rc != RC::SUCCESS) {
+//     return rc;
+//   }
+
+//   if (child_bound_expressions.size() != 1) {
+//     LOG_WARN("invalid right children number of comparison expression: %d", child_bound_expressions.size());
+//     return RC::INVALID_ARGUMENT;
+//   }
+
+//   unique_ptr<Expression> &right = child_bound_expressions[0];
+//   if (right.get() != right_expr.get()) {
+//     right_expr.reset(right.release());
+//   }
+
+//   //refactor by ywm:原来在logical_plan.filter_stmt的type_cast前移到这里
+//   //
+//   if (left->value_type() != right->value_type()) {
+//     auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
+//     auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
+//     if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {
+//       ExprType left_type = left->type();
+//       auto     cast_expr = make_unique<CastExpr>(std::move(left), right->value_type());
+//       if (left_type == ExprType::VALUE) {
+//         Value left_val;
+//         if (OB_FAIL(rc = cast_expr->try_get_value(left_val))) {
+//           LOG_WARN("failed to get value from left child", strrc(rc));
+//           return rc;
+//         }
+//         left = make_unique<ValueExpr>(left_val);
+//       } else {
+//         left = std::move(cast_expr);
+//       }
+//     } else if (right_to_left_cost < left_to_right_cost && right_to_left_cost != INT32_MAX) {
+//       ExprType right_type = right->type();
+//       auto     cast_expr  = make_unique<CastExpr>(std::move(right), left->value_type());
+//       if (right_type == ExprType::VALUE) {
+//         Value right_val;
+//         if (OB_FAIL(rc = cast_expr->try_get_value(right_val))) {
+//           LOG_WARN("failed to get value from right child", strrc(rc));
+//           return rc;
+//         }
+//         right = make_unique<ValueExpr>(right_val);
+//       } else {
+//         right = std::move(cast_expr);
+//       }
+
+//     } else {
+//       rc = RC::UNSUPPORTED;
+//       LOG_WARN("unsupported cast from %s to %s", attr_type_to_string(left->value_type()),
+//       attr_type_to_string(right->value_type())); return rc;
+//     }
+//   }
+//   bound_expressions.emplace_back(std::move(expr));
+//   return RC::SUCCESS;
+// }
 RC ExpressionBinder::bind_comparison_expression(
     unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
@@ -235,6 +320,7 @@ RC ExpressionBinder::bind_comparison_expression(
   unique_ptr<Expression>        &left_expr  = comparison_expr->left();
   unique_ptr<Expression>        &right_expr = comparison_expr->right();
 
+  // 绑定左表达式
   RC rc = bind_expression(left_expr, child_bound_expressions);
   if (rc != RC::SUCCESS) {
     return rc;
@@ -245,12 +331,14 @@ RC ExpressionBinder::bind_comparison_expression(
     return RC::INVALID_ARGUMENT;
   }
 
-  unique_ptr<Expression> &left = child_bound_expressions[0];
+  unique_ptr<Expression> left = std::move(child_bound_expressions[0]);
   if (left.get() != left_expr.get()) {
-    left_expr.reset(left.release());
+    left_expr = std::move(left);
   }
 
   child_bound_expressions.clear();
+
+  // 绑定右表达式
   rc = bind_expression(right_expr, child_bound_expressions);
   if (rc != RC::SUCCESS) {
     return rc;
@@ -261,15 +349,60 @@ RC ExpressionBinder::bind_comparison_expression(
     return RC::INVALID_ARGUMENT;
   }
 
-  unique_ptr<Expression> &right = child_bound_expressions[0];
+  unique_ptr<Expression> right = std::move(child_bound_expressions[0]);
   if (right.get() != right_expr.get()) {
-    right_expr.reset(right.release());
+    right_expr = std::move(right);
+  }
+
+  // 类型转换处理
+  if (left_expr->value_type() != right_expr->value_type()) {
+    LOG_INFO("left type:%d,right type:%d",left_expr->value_type(),right_expr->value_type());
+    auto left_to_right_cost = implicit_cast_cost(left_expr->value_type(), right_expr->value_type());
+    auto right_to_left_cost = implicit_cast_cost(right_expr->value_type(), left_expr->value_type());
+
+    if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {
+      // 转换左表达式类型以匹配右表达式
+      ExprType left_type = left_expr->type();
+      auto     cast_expr = make_unique<CastExpr>(std::move(left_expr), right_expr->value_type());
+
+      if (left_type == ExprType::VALUE) {
+        Value left_val;
+        rc = cast_expr->try_get_value(left_val);
+        if (rc != RC::SUCCESS) {
+          LOG_WARN("failed to get value from left child");
+          return rc;
+        }
+        left_expr = make_unique<ValueExpr>(left_val);
+      } else {
+        left_expr = std::move(cast_expr);
+      }
+    } else if (right_to_left_cost != INT32_MAX) {
+      // 转换右表达式类型以匹配左表达式
+      ExprType right_type = right_expr->type();
+      auto     cast_expr  = make_unique<CastExpr>(std::move(right_expr), left_expr->value_type());
+
+      if (right_type == ExprType::VALUE) {
+        Value right_val;
+        rc = cast_expr->try_get_value(right_val);
+        if (rc != RC::SUCCESS) {
+          LOG_WARN("failed to get value from right child");
+          return rc;
+        }
+        right_expr = make_unique<ValueExpr>(right_val);
+      } else {
+        right_expr = std::move(cast_expr);
+      }
+    } else {
+      LOG_WARN("unsupported cast from %s to %s", 
+                     attr_type_to_string(left_expr->value_type()), 
+                     attr_type_to_string(right_expr->value_type()));
+      return RC::UNSUPPORTED;
+    }
   }
 
   bound_expressions.emplace_back(std::move(expr));
   return RC::SUCCESS;
 }
-
 RC ExpressionBinder::bind_conjunction_expression(
     unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
 {

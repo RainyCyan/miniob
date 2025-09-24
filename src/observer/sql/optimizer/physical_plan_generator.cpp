@@ -136,7 +136,6 @@ RC PhysicalPlanGenerator::create_plan(
   Table *table = table_get_oper.table();
 
   Index     *index      = nullptr;
-  FieldExpr *field_expr = nullptr;
   ValueExpr *value_expr = nullptr;
   for (auto &expr : predicates) {
     if (expr->type() == ExprType::COMPARISON) {
@@ -146,6 +145,7 @@ RC PhysicalPlanGenerator::create_plan(
         continue;
       }
 
+      FieldExpr              *field_expr = nullptr;
       unique_ptr<Expression> &left_expr  = comparison_expr->left();
       unique_ptr<Expression> &right_expr = comparison_expr->right();
       // 左右比较的一边最少是一个值
@@ -167,7 +167,7 @@ RC PhysicalPlanGenerator::create_plan(
         continue;
       }
 
-      const Field &field                        = field_expr->field();
+      const Field &field = field_expr->field();
       index              = table->find_index_by_field(field.field_name());
       if (nullptr != index) {
         break;
@@ -177,20 +177,14 @@ RC PhysicalPlanGenerator::create_plan(
 
   if (index != nullptr) {
     ASSERT(value_expr != nullptr, "got an index but value expr is null ?");
-    Value cast_value;
     const Value &value = value_expr->get_value();
-    // by ywm,cast_to operation
-    auto         field_type = field_expr->field().attr_type();
-    Value::cast_to(value,field_type,cast_value);
-
-    LOG_INFO("value.type:%d,value:%s",value.attr_type(),value.to_string().c_str());
 
     IndexScanPhysicalOperator *index_scan_oper = new IndexScanPhysicalOperator(table,
         index,
         table_get_oper.read_write_mode(),
-        &cast_value,
+        &value,
         true /*left_inclusive*/,
-        &cast_value,
+        &value,
         true /*right_inclusive*/);
 
     index_scan_oper->set_predicates(std::move(predicates));

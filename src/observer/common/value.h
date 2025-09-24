@@ -85,6 +85,9 @@ public:
 
   static RC cast_to(const Value &value, AttrType to_type, Value &result)
   {
+    //add nulls check
+    if(value.is_null())
+      return RC::INVALID_ARGUMENT;
     return DataType::type_instance(value.attr_type())->cast_to(value, to_type, result);
   }
 

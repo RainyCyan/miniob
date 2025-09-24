@@ -43,7 +43,13 @@ public:
   virtual ~ExpressionBinder() = default;
 
   RC bind_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions);
-
+  int implicit_cast_cost(AttrType from, AttrType to)
+  {
+    if (from == to) {
+      return 0;
+    }
+    return DataType::type_instance(from)->cast_cost(to);
+  }
 private:
   RC bind_star_expression(unique_ptr<Expression> &star_expr, vector<unique_ptr<Expression>> &bound_expressions);
   RC bind_unbound_field_expression(
