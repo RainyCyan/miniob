@@ -40,6 +40,7 @@ RC HeapRecordScanner::open_scan()
  */
 RC HeapRecordScanner::fetch_next_record()
 {
+  LOG_INFO("call fetch_next_record");
   RC rc = RC::SUCCESS;
   if (record_page_iterator_.is_valid()) {
     // 当前页面还是有效的，尝试看一下是否有有效记录

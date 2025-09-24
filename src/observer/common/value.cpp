@@ -199,7 +199,7 @@ void Value::set_date(int y, int m, int d)
   reset();
   attr_type_        = AttrType::DATES;
   value_.int_value_ = y * 10000 + m * 100 + d;
-  length_           = sizeof(int);
+  length_           = sizeof(value_.int_value_);
 }
 
 // void Value::set_date(int val)

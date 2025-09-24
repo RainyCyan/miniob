@@ -61,7 +61,7 @@ RC IndexScanPhysicalOperator::next()
   // TODO: 需要适配 lsm-tree 引擎
   RID rid;
   RC  rc = RC::SUCCESS;
-
+  LOG_INFO("call indexscan->next");
   bool filter_result = false;
   while (RC::SUCCESS == (rc = index_scanner_->next_entry(&rid))) {
     rc = table_->get_record(rid, current_record_);

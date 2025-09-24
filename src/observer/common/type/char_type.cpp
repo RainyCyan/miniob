@@ -32,8 +32,9 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
   switch (type) {
     case AttrType::DATES: 
     {
-      LOG_INFO("chars->dates");
-      return DateType().set_value_from_str(result,val.value_.pointer_value_); 
+      // LOG_INFO("chars->dates");
+      //char* -> string
+      return DateType().set_value_from_str(result,string(val.value_.pointer_value_)); 
     }
     default: return RC::UNIMPLEMENTED;
   }

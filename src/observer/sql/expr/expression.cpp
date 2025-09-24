@@ -141,6 +141,21 @@ ComparisonExpr::~ComparisonExpr() {}
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
   RC rc = RC::SUCCESS;
+  // add is null/is not null case
+  if (comp_ == IS_OP) {
+    if (right.attr_type() != AttrType::NULLS) {
+      return RC::INVALID_ARGUMENT;
+    }
+    result = left.is_null();
+    return RC::SUCCESS;
+  }
+  if (comp_ == IS_NOT_OP) {
+    if (right.attr_type() != AttrType::NULLS) {
+      return RC::INVALID_ARGUMENT;
+    }
+    result = !left.is_null();
+    return RC::SUCCESS;
+  }
   if (left.is_null() || right.is_null()) {
     result = false;
     return rc;
