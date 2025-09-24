@@ -1843,6 +1843,7 @@ BplusTreeScanner::~BplusTreeScanner() { close(); }
 RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inclusive, const char *right_user_key,
     int right_len, bool right_inclusive)
 {
+  LOG_INFO("BplusTreeScanner::open,left_user_key:%s",left_user_key);
   RC rc = RC::SUCCESS;
   if (inited_) {
     LOG_WARN("tree scanner has been inited");
@@ -2004,6 +2005,7 @@ RC BplusTreeScanner::next_entry(RID &rid)
   }
 
   if (!first_emitted_) {
+    LOG_INFO("call BplusTreeScanner next_entry");
     fetch_item(rid);
     first_emitted_ = true;
     return RC::SUCCESS;
