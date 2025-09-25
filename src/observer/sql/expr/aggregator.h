@@ -17,6 +17,24 @@ See the Mulan PSL v2 for more details. */
 #include "common/value.h"
 #include "common/sys/rc.h"
 
+// class Aggregator
+// {
+// public:
+//   virtual ~Aggregator() = default;
+
+//   virtual RC accumulate(const Value &value) = 0;
+//   virtual RC evaluate(Value &result)        = 0;
+
+// protected:
+//   Value value_;
+// };
+
+// class SumAggregator : public Aggregator
+// {
+// public:
+//   RC accumulate(const Value &value) override;
+//   RC evaluate(Value &result) override;
+// };
 class Aggregator
 {
 public:
@@ -30,6 +48,42 @@ protected:
 };
 
 class SumAggregator : public Aggregator
+{
+public:
+  SumAggregator(){value_=Value(0);};
+  RC accumulate(const Value &value) override;
+  RC evaluate(Value &result) override;
+};
+
+//参考SumAggregator add other aggragator here
+class CountAggregator : public Aggregator
+{
+public:
+  CountAggregator(){value_=Value(0);}
+  RC accumulate(const Value &value) override;
+  RC evaluate(Value &result) override;
+};
+
+class AvgAggregator : public Aggregator
+{
+public:
+  AvgAggregator():value_cnt_(0) {value_=Value(0);}
+  RC accumulate(const Value &value) override;
+  RC evaluate(Value &result) override;
+protected:
+//增加一个value_cnt_用于计算记录count
+  Value value_cnt_;
+
+};
+
+class MaxAggregator : public Aggregator
+{
+public:
+  RC accumulate(const Value &value) override;
+  RC evaluate(Value &result) override;
+};
+
+class MinAggregator : public Aggregator
 {
 public:
   RC accumulate(const Value &value) override;
