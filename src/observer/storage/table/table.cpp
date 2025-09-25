@@ -237,6 +237,20 @@ RC Table::make_updated_record(const Record &old_record,Record&new_record, const 
     return RC::SCHEMA_FIELD_MISSING;
   }
 
+  //add null set case
+  const FieldMeta* null_field_meta=table_meta_.null_field();
+  common::Bitmap null_bitmap(new_record.data()+null_field_meta->offset(),null_field_meta->len()*8);
+  if(value.is_null())
+  {
+    if(field_meta->nullable())
+    {
+      null_bitmap.set_bit(field_meta->field_id());
+    }else
+    {
+      LOG_WARN("Update null to not null field");
+      return RC::INVALID_ARGUMENT;
+    }
+  }
   // 类型检查和转换
   if(field_meta->type() != value.attr_type()){
     Value real_value;
