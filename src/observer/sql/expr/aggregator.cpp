@@ -21,10 +21,10 @@ See the Mulan PSL v2 for more details. */
 //     value_ = value;
 //     return RC::SUCCESS;
 //   }
-  
-//   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s", 
+
+//   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s",
 //         attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-  
+
 //   Value::add(value, value_, value_);
 //   return RC::SUCCESS;
 // }
@@ -34,116 +34,140 @@ See the Mulan PSL v2 for more details. */
 //   result = value_;
 //   return RC::SUCCESS;
 // }
+#include "sql/expr/aggregator.h"
+#include "common/log/log.h"
+
 RC SumAggregator::accumulate(const Value &value)
 {
   if (value_.attr_type() == AttrType::UNDEFINED) {
     value_ = value;
+    // is_first = false;
+    set_value_type(value.attr_type());
+    all_null = false;
     return RC::SUCCESS;
   }
-  
+  if (value.is_null()) {
+    return RC::SUCCESS;
+  }
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s", 
         attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-  //add函数的规则是left(1) + right(2) = result(3)
-  //Sum聚合函数就是将之前结果加上当前的value赋值给value_
+
   Value::add(value, value_, value_);
+  all_null = false;
   return RC::SUCCESS;
 }
 
-//evaluate将计算结果传递给result
-RC SumAggregator::evaluate(Value& result)
+RC SumAggregator::evaluate(Value &result)
 {
-  result = value_;
+  if (all_null)
+    result.set_null();
+  else
+    result = value_;
   return RC::SUCCESS;
 }
 
-//实现here
 RC CountAggregator::accumulate(const Value &value)
 {
-  if (value_.attr_type() == AttrType::UNDEFINED) {
-    value_ = value;
+  if (value.is_null()) {
     return RC::SUCCESS;
   }
-  
-  ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s", 
-        attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-  //Count将value_ 加一
-  Value::add(Value(1), value_, value_);
-  return RC::SUCCESS;
+  RC rc    = Value::add(Value(1), value_, value_);
+  all_null = false;
+  return rc;
 }
 
-RC CountAggregator::evaluate(Value& result)
+RC CountAggregator::evaluate(Value &result)
 {
   result = value_;
   return RC::SUCCESS;
 }
 
-//Avg只需要执行Sum和Count中的操作
-//最后在evaluate中调用div
 RC AvgAggregator::accumulate(const Value &value)
 {
-  if (value_.attr_type() == AttrType::UNDEFINED) {
-    value_ = value;
-
+  if (value.is_null()) {
     return RC::SUCCESS;
   }
-  
-  // ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s", 
-  //       attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-
-  Value::add(value, value_, value_);
-  Value::add(Value(1),value_cnt_,value_cnt_);
-  return RC::SUCCESS;
+  RC rc = sum_aggregator_->accumulate(value);
+  if (OB_FAIL(rc)) {
+    return rc;
+  }
+  rc       = count_aggregator_->accumulate(value);
+  all_null = false;
+  return rc;
 }
 
-//result=value_/value_cnt_
-RC AvgAggregator::evaluate(Value& result)
+RC AvgAggregator::evaluate(Value &result)
 {
-  //result需要先设置成float
+  Value count;
+  Value sum;
+  RC    rc = count_aggregator_->evaluate(count);
+  if (OB_FAIL(rc)) {
+    return rc;
+  }
+  rc = sum_aggregator_->evaluate(sum);
+  if (OB_FAIL(rc)) {
+    return rc;
+  }
   result.set_type(AttrType::FLOATS);
-  Value::divide(value_,value_cnt_,result);
-  return RC::SUCCESS;
+  if (count.is_null() || count.get_int() == 0 || all_null) {
+    result.set_null();
+  } else {
+    result.set_type(AttrType::FLOATS);
+    rc = Value::divide(sum, count, result);
+  }
+  return rc;
 }
 
 RC MaxAggregator::accumulate(const Value &value)
 {
-  if (value_.attr_type() == AttrType::UNDEFINED) {
-    value_ = value;
+  if (value.is_null()) {
     return RC::SUCCESS;
   }
-  
-  ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s", 
-        attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-
-  //call Value::compare(other) /// @return 1:大于;-1：小于;0：等于;INT32_MAX:未实现的比较
-  value_=value.compare(value_)==1?value:value_;
-
+  if (value_.attr_type() == AttrType::UNDEFINED || this->is_first == true) {
+    value_         = value;
+    this->is_first = false;
+    all_null       = false;
+  } else {
+    if (value.compare(value_) > 0) {
+      value_ = value;
+    }
+  }
+  all_null = false;
   return RC::SUCCESS;
 }
 
-RC MaxAggregator::evaluate(Value& result)
+RC MaxAggregator::evaluate(Value &result)
 {
-  result = value_;
+  if (all_null)
+    result.set_null();
+  else
+    result = value_;
   return RC::SUCCESS;
 }
 
 RC MinAggregator::accumulate(const Value &value)
 {
-  if (value_.attr_type() == AttrType::UNDEFINED) {
-    value_ = value;
+  if (value.is_null()) {
     return RC::SUCCESS;
   }
-  
-  ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s", 
-        attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-
-  //call Value::compare(other) /// @return 1:大于;-1：小于;0：等于;INT32_MAX:未实现的比较
-  value_=value.compare(value_)==-1?value:value_;
-
+  if (value_.attr_type() == AttrType::UNDEFINED || this->is_first == true) {
+    value_         = value;
+    this->is_first = false;
+    all_null       = false;
+  } else {
+    if (value.compare(value_) < 0) {
+      value_ = value;
+    }
+  }
+  all_null = false;
   return RC::SUCCESS;
 }
 
-RC MinAggregator::evaluate(Value& result)
+RC MinAggregator::evaluate(Value &result)
 {
-  result = value_;
+  if (all_null)
+    result.set_null();
+  else
+    result = value_;
   return RC::SUCCESS;
 }

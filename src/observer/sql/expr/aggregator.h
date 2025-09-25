@@ -40,26 +40,27 @@ class Aggregator
 public:
   virtual ~Aggregator() = default;
 
-  virtual RC accumulate(const Value &value) = 0;
-  virtual RC evaluate(Value &result)        = 0;
+  virtual RC   accumulate(const Value &value) = 0;
+  virtual RC   evaluate(Value &result)        = 0;
+  virtual void set_value_type(AttrType attr_type) { value_.set_type(attr_type); }
 
 protected:
   Value value_;
+  bool  all_null = true;
+  bool  is_first = true;  // 比大小的时候，以第一个输入的值为基准去做比较
 };
 
 class SumAggregator : public Aggregator
 {
 public:
-  SumAggregator(){value_=Value(0);};
   RC accumulate(const Value &value) override;
   RC evaluate(Value &result) override;
 };
 
-//参考SumAggregator add other aggragator here
 class CountAggregator : public Aggregator
 {
 public:
-  CountAggregator(){value_=Value(0);}
+  CountAggregator() { value_ = Value(0); }
   RC accumulate(const Value &value) override;
   RC evaluate(Value &result) override;
 };
@@ -67,13 +68,17 @@ public:
 class AvgAggregator : public Aggregator
 {
 public:
-  AvgAggregator():value_cnt_(0) {value_=Value(0);}
+  AvgAggregator()
+  {
+    sum_aggregator_   = make_unique<SumAggregator>();
+    count_aggregator_ = make_unique<CountAggregator>();
+  }
   RC accumulate(const Value &value) override;
   RC evaluate(Value &result) override;
-protected:
-//增加一个value_cnt_用于计算记录count
-  Value value_cnt_;
 
+private:
+  unique_ptr<SumAggregator>   sum_aggregator_;
+  unique_ptr<CountAggregator> count_aggregator_;
 };
 
 class MaxAggregator : public Aggregator
