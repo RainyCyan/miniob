@@ -597,8 +597,19 @@ expression:
     ;
 
 aggregate_expression:
-    ID LBRACE expression RBRACE {
-      $$ = create_aggregate_expression($1, $3, sql_string, &@$);
+    ID LBRACE expression_list RBRACE {
+      //only has one expression is legal
+      if ($3->size()==1)
+      {
+        $$ = create_aggregate_expression($1, $3->front().get(), sql_string, &@$);
+      }
+      else
+      {
+        $$ = create_aggregate_expression($1, nullptr, sql_string, &@$);
+      }
+    }
+    | ID LBRACE RBRACE{
+        $$ = create_aggregate_expression($1, nullptr, sql_string, &@$);
     }
     ;
 
