@@ -354,8 +354,12 @@ RC ExpressionBinder::bind_comparison_expression(
     right_expr = std::move(right);
   }
 
+  if(left_expr->value_type()==AttrType::NULLS||right_expr->value_type()==AttrType::NULLS)
+  {
+    //do nothing
+  }
   // 类型转换处理
-  if (left_expr->value_type() != right_expr->value_type()) {
+  else if (left_expr->value_type() != right_expr->value_type()) {
     LOG_INFO("left type:%d,right type:%d",left_expr->value_type(),right_expr->value_type());
     auto left_to_right_cost = implicit_cast_cost(left_expr->value_type(), right_expr->value_type());
     auto right_to_left_cost = implicit_cast_cost(right_expr->value_type(), left_expr->value_type());
@@ -398,6 +402,8 @@ RC ExpressionBinder::bind_comparison_expression(
                      attr_type_to_string(right_expr->value_type()));
       return RC::UNSUPPORTED;
     }
+  }else{
+    //do nothing
   }
 
   bound_expressions.emplace_back(std::move(expr));
