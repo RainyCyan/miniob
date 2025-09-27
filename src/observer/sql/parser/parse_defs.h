@@ -39,6 +39,19 @@ struct RelAttrSqlNode
   string attribute_name;  ///< attribute name              属性名
 };
 
+// by ywm,add joinsqlnode
+/**
+ * @brief Join子句的辅助结构
+ * @ingroup SQLParser
+ * @details 目前只需要支持INNER JOIN,记录每个join的relation和condition_list
+ * 在SelectSqlNode只需要简单记录join_list的条件，处理在create@select_stmt.cpp
+ */
+struct JoinSqlNode
+{
+  std::vector<std::string> relations;           
+  unique_ptr<Expression>   condition;
+};
+
 /**
  * @brief 描述比较运算符
  * @ingroup SQLParser

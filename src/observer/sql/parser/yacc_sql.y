@@ -100,6 +100,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         AND
         OR
         HAVING
+        INNER
+        JOIN
         SET
         ON
         LOAD
@@ -132,6 +134,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   Value *                                    value;
   enum CompOp                                comp;
   RelAttrSqlNode *                           rel_attr;
+  JoinSqlNode *                              join_clause;
   vector<AttrInfoSqlNode> *                  attr_infos;
   AttrInfoSqlNode *                          attr_info;
   Expression *                               expression;
@@ -183,6 +186,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <key_list>            primary_key
 %type <key_list>            attr_list
 %type <relation_list>       rel_list
+%type <join_clause>         join_clause
 %type <expression>          expression
 %type <expression>          aggregate_expression
 %type <expression_list>     expression_list
@@ -509,7 +513,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM rel_list where group_by having
+    SELECT expression_list FROM rel_list join_clause where group_by having
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -521,20 +525,31 @@ select_stmt:        /*  select 语句的语法解析树*/
         $$->selection.relations.swap(*$4);
         delete $4;
       }
-
       if ($5 != nullptr) {
-        $$->selection.condition=std::move(unique_ptr<Expression>($5));
+        for (auto it = $5->relations.rbegin(); it != $5->relations.rend(); ++it) {
+          $$->selection.relations.emplace_back(std::move(*it));
+        }
+        $$->selection.condition = std::move($5->condition);
+      }
+      if ($6 != nullptr) {
+        //merge join_condition
+        // auto ptr = $$->selection.condition;
+        vector<unique_ptr<Expression>> children;
+        children.push_back(std::move($$->selection.condition));
+        children.push_back(unique_ptr<Expression>($6));
+        $$->selection.condition = std::move(unique_ptr<Expression>(new ConjunctionExpr(ConjunctionExpr::Type::AND, children)));
+        // $$->selection.condition=std::move(unique_ptr<Expression>($6));
         // $$->selection.conditions.swap(*$5);
         // delete $5;
       }
 
-      if ($6 != nullptr) {
-        $$->selection.group_by.swap(*$6);
-        delete $6;
+      if ($7 != nullptr) {
+        $$->selection.group_by.swap(*$7);
+        delete $7;
       }
 
-      if($7!=nullptr){
-        $$->selection.having_condition=std::move(unique_ptr<Expression>($7));
+      if($8!=nullptr){
+        $$->selection.having_condition=std::move(unique_ptr<Expression>($8));
       }
     }
     ;
@@ -551,8 +566,7 @@ expression_list:
     expression
     {
       $$ = new vector<unique_ptr<Expression>>;
-      $$->emplace_back(unique_ptr<Expression>($1));
-      $1=nullptr;
+      $$->push_back(unique_ptr<Expression>($1));
     }
     | expression COMMA expression_list
     {
@@ -653,6 +667,26 @@ rel_list:
     }
     ;
 
+//add join_clause
+join_clause:
+  /*empty*/
+  {
+    $$=nullptr;
+  }
+  |join_clause INNER JOIN relation ON condition {
+    if ($1 != nullptr) {
+      $$ = $1;
+      vector<unique_ptr<Expression>> children;
+      children.push_back(std::move($$->condition));
+      children.push_back(unique_ptr<Expression>($6));
+      $$->condition=std::move(unique_ptr<Expression>(new ConjunctionExpr(ConjunctionExpr::Type::AND,children)));
+    } else {
+      $$ = new JoinSqlNode();
+      $$->condition=std::move(unique_ptr<Expression>($6));
+    }
+    $$->relations.emplace_back($4);
+  }
+  ;
 // add having
 having:
   /*empty*/
