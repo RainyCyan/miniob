@@ -533,13 +533,15 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
       if ($6 != nullptr) {
         //merge join_condition
-        // auto ptr = $$->selection.condition;
-        vector<unique_ptr<Expression>> children;
-        children.push_back(std::move($$->selection.condition));
-        children.push_back(unique_ptr<Expression>($6));
-        $$->selection.condition = std::move(unique_ptr<Expression>(new ConjunctionExpr(ConjunctionExpr::Type::AND, children)));
-        // $$->selection.condition=std::move(unique_ptr<Expression>($6));
-        // $$->selection.conditions.swap(*$5);
+        if($$->selection.condition){
+          // auto ptr = $$->selection.condition;
+          vector<unique_ptr<Expression>> children;
+          children.push_back(std::move($$->selection.condition));
+          children.push_back(unique_ptr<Expression>($6));
+          $$->selection.condition = std::move(unique_ptr<Expression>(new ConjunctionExpr(ConjunctionExpr::Type::AND, children)));
+        }else{
+          $$->selection.condition=std::move(unique_ptr<Expression>($6));
+        }// $$->selection.conditions.swap(*$5);
         // delete $5;
       }
 
