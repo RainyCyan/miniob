@@ -25,7 +25,7 @@ public:
   virtual ~CharType() = default;
 
   int compare(const Value &left, const Value &right) const override;
-
+  RC convertToFloat(const char *str,float &result) const;
   RC cast_to(const Value &val, AttrType type, Value &result) const override;
 
   RC set_value_from_str(Value &val, const string &data) const override;

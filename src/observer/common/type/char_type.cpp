@@ -26,7 +26,29 @@ RC CharType::set_value_from_str(Value &val, const string &data) const
   val.set_string(data.c_str());
   return RC::SUCCESS;
 }
+RC CharType::convertToFloat(const char *str,float &result) const
+{
+  // char *end;
+  // result = std::strtof(str, &end);
 
+  // // 如果没有任何合法的数字被转换，end 会指向 str 本身
+  // if (end == str) {
+  //   result =0;
+  //   return RC::SUCCESS;  // 字符串不是合法数字，返回 0
+  // }
+
+  // return RC::SUCCESS;
+  char *end_ptr;
+  // 输入不是有效的整数格式，会转换为 0.0
+  double float_val = std::strtod(str, &end_ptr);
+  // 注释以支持前缀解析
+  // if (*end_ptr != '\0' && !isspace(*end_ptr)) {
+  //   return RC::INVALID_ARGUMENT;  // 浮点数后应为结尾或空白字符
+  // }
+  // 默认认为 float_val 是否在 float 范围内
+  result = static_cast<float>(float_val);
+  return RC::SUCCESS;
+}
 RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
 {
   switch (type) {
@@ -36,6 +58,15 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
       //char* -> string
       return DateType().set_value_from_str(result,string(val.value_.pointer_value_)); 
     }
+    case AttrType::INTS:
+    case AttrType::FLOATS: {
+      result.attr_type_ = AttrType::FLOATS;
+      float float_value; 
+      RC rc= this->convertToFloat(val.get_string().c_str(),float_value);
+      if(rc!=RC::SUCCESS)
+        return rc;
+      result.set_float(float_value);
+    } break; 
     default: return RC::UNIMPLEMENTED;
   }
   return RC::SUCCESS;
@@ -47,6 +78,12 @@ int CharType::cast_cost(AttrType type)
     return 0;
   }
   if(type==AttrType::DATES){
+    return 1;
+  }
+  if (type == AttrType::INTS) {
+    return 1;
+  }
+  if (type == AttrType::FLOATS) {
     return 1;
   }
   return INT32_MAX;
