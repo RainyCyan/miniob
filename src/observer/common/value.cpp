@@ -129,7 +129,7 @@ void Value::set_data(char *data, int length)
     } break;
     case AttrType::DATES: {
       value_.int_value_ = *(int *)data;
-      length_            = length;
+      length_           = length;
     } break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
@@ -228,9 +228,9 @@ void Value::set_value(const Value &value)
     // case AttrType::DATES: {
     //   set_date(value.get_int());
     // } break;
-    case AttrType::NULLS:{
+    case AttrType::NULLS: {
       set_null();
-    }break;
+    } break;
     default: {
       ASSERT(false, "got an invalid value type");
     } break;
@@ -263,13 +263,12 @@ string Value::to_string() const
 {
   string res;
   LOG_INFO("call value.to_string");
-  //by ywm,add null.to_string
-  if(this->attr_type_==AttrType::NULLS)
-  {
-    res="NULL";
+  // by ywm,add null.to_string
+  if (this->attr_type_ == AttrType::NULLS) {
+    res = "NULL";
     return res;
   }
-  RC     rc = DataType::type_instance(this->attr_type_)->to_string(*this, res);
+  RC rc = DataType::type_instance(this->attr_type_)->to_string(*this, res);
   if (OB_FAIL(rc)) {
     LOG_WARN("failed to convert value to string. type=%s", attr_type_to_string(this->attr_type_));
     return "";
@@ -279,11 +278,18 @@ string Value::to_string() const
 
 int Value::compare(const Value &other) const
 {
+  if (this->is_null()||other.is_null()) {
+    if (this->is_null()&&other.is_null()) {
+      return 0;
+    } else {
+      return -1;
+    }
+  }
   return DataType::type_instance(this->attr_type_)->compare(*this, other);
 }
 
-//by ywm,add like_match
-// add like_match here
+// by ywm,add like_match
+//  add like_match here
 bool Value::like_match(const Value &other) const
 {
   // 获取左右操作数的字符串
@@ -419,7 +425,7 @@ bool Value::get_boolean() const
 }
 
 // int Value::get_date()
-// {  
+// {
 //   switch (attr_type_) {
 //     case AttrType::CHARS: {
 //       try {

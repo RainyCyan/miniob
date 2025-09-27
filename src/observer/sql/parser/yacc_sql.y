@@ -551,7 +551,8 @@ expression_list:
     expression
     {
       $$ = new vector<unique_ptr<Expression>>;
-      $$->emplace_back($1);
+      $$->emplace_back(unique_ptr<Expression>($1));
+      $1=nullptr;
     }
     | expression COMMA expression_list
     {
@@ -560,7 +561,7 @@ expression_list:
       } else {
         $$ = new vector<unique_ptr<Expression>>;
       }
-      $$->emplace($$->begin(), $1);
+      $$->emplace($$->begin(), std::move(unique_ptr<Expression>($1)));
     }
     ;
 expression:
