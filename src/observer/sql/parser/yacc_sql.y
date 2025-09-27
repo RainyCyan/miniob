@@ -99,6 +99,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         WHERE
         AND
         OR
+        HAVING
         SET
         ON
         LOAD
@@ -175,7 +176,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
 %type <value_list>          value_list
-%type <expression>      where
+%type <expression>          where
+%type <expression>          having
 // %type <condition_list>      condition_list
 %type <cstring>             storage_format
 %type <key_list>            primary_key
@@ -507,7 +509,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM rel_list where group_by
+    SELECT expression_list FROM rel_list where group_by having
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -529,6 +531,10 @@ select_stmt:        /*  select 语句的语法解析树*/
       if ($6 != nullptr) {
         $$->selection.group_by.swap(*$6);
         delete $6;
+      }
+
+      if($7!=nullptr){
+        $$->selection.having_condition=std::move(unique_ptr<Expression>($7));
       }
     }
     ;
@@ -646,6 +652,15 @@ rel_list:
     }
     ;
 
+// add having
+having:
+  /*empty*/
+  {
+    $$=nullptr;
+  }
+  | HAVING condition {
+    $$=$2;
+  }
 where:
     /* empty */
     {

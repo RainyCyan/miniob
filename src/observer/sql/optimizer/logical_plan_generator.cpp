@@ -132,6 +132,7 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
     }
   }
 
+  // create group by locial plan
   unique_ptr<LogicalOperator> group_by_oper;
   RC                          rc = create_group_by_plan(select_stmt, group_by_oper);
   if (OB_FAIL(rc)) {
@@ -147,6 +148,21 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
     last_oper = &group_by_oper;
   }
 
+  // having_predicator应该在group_by之后执行
+  auto                       &having_filter_expressions = select_stmt->having_filter_expressions();
+  unique_ptr<LogicalOperator> having_predicate_oper;
+  if (!having_filter_expressions.empty()) {
+    auto having_predicate_oper_ = unique_ptr<PredicateLogicalOperator>(
+        new PredicateLogicalOperator(std::move(select_stmt->having_filter_expressions()[0])));
+
+    if (having_predicate_oper_) {
+      if (*last_oper) {
+        having_predicate_oper_->add_child(std::move(*last_oper));
+      }
+      having_predicate_oper = static_cast<std::unique_ptr<LogicalOperator>>(std::move(having_predicate_oper_));
+      last_oper      = &having_predicate_oper;
+    }
+  }
   unique_ptr<LogicalOperator> project_oper =
       make_unique<ProjectLogicalOperator>(std::move(select_stmt->query_expressions()));
   if (*last_oper) {
@@ -239,7 +255,7 @@ RC LogicalPlanGenerator::create_plan(InsertStmt *insert_stmt, unique_ptr<Logical
 {
   Table *table = insert_stmt->table();
   // vector<Value> values(insert_stmt->values(), insert_stmt->values() + insert_stmt->value_amount());
-  vector<Value>         &values          = insert_stmt->values();
+  vector<Value> &values = insert_stmt->values();
 
   InsertLogicalOperator *insert_operator = new InsertLogicalOperator(table, values);
   logical_operator.reset(insert_operator);
@@ -328,6 +344,7 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
   vector<unique_ptr<Expression>>        &group_by_expressions = select_stmt->group_by();
   vector<Expression *>                   aggregate_expressions;
   vector<unique_ptr<Expression>>        &query_expressions = select_stmt->query_expressions();
+  vector<unique_ptr<Expression>>        &having_filter_expressions=select_stmt->having_filter_expressions();
   function<RC(unique_ptr<Expression> &)> collector         = [&](unique_ptr<Expression> &expr) -> RC {
     RC rc = RC::SUCCESS;
     if (expr->type() == ExprType::AGGREGATION) {
@@ -338,7 +355,7 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
     return rc;
   };
 
-  //note:group by expr在logical_plan阶段bind
+  // note:group by expr在logical_plan阶段bind
   function<RC(unique_ptr<Expression> &)> bind_group_by_expr = [&](unique_ptr<Expression> &expr) -> RC {
     RC rc = RC::SUCCESS;
     for (size_t i = 0; i < group_by_expressions.size(); i++) {
@@ -382,6 +399,12 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
   for (unique_ptr<Expression> &expression : query_expressions) {
     collector(expression);
   }
+
+  //collect aggregate expressions from having_filter_expressions
+  for(auto &having_filter_expr:having_filter_expressions)
+  {
+    collector(having_filter_expr);
+  } 
 
   if (group_by_expressions.empty() && aggregate_expressions.empty()) {
     // 既没有group by也没有聚合函数，不需要group by

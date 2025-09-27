@@ -44,10 +44,11 @@ public:
   vector<unique_ptr<Expression>> &query_expressions() { return query_expressions_; }
   vector<unique_ptr<Expression>> &filter_expressions() { return filter_expressions_; }
   vector<unique_ptr<Expression>> &group_by() { return group_by_; }
-
+  vector<unique_ptr<Expression>> &having_filter_expressions() { return having_filter_expressions_; }
 private:
   vector<unique_ptr<Expression>> query_expressions_;
   vector<Table *>                tables_;
   vector<unique_ptr<Expression>> filter_expressions_;
   vector<unique_ptr<Expression>> group_by_;
+  vector<unique_ptr<Expression>> having_filter_expressions_;
 };

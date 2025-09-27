@@ -77,6 +77,15 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     }
   }
 
+  //bind having_condition
+  vector<unique_ptr<Expression>> having_filter_expressions;
+  RC rc=expression_binder.bind_expression(select_sql.having_condition,having_filter_expressions);
+  if (OB_FAIL(rc)) {
+    LOG_INFO("bind expression failed. rc=%s", strrc(rc));
+    return rc;
+  }
+
+
   // Table *default_table = nullptr;
   // if (tables.size() == 1) {
   //   default_table = tables[0];
@@ -84,7 +93,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
 
   // by ywm,refactor:replace filter stmt using expression
   vector<unique_ptr<Expression>> filter_expressions;
-  RC                         rc = expression_binder.bind_expression(select_sql.condition, filter_expressions);
+  rc = expression_binder.bind_expression(select_sql.condition, filter_expressions);
   if (OB_FAIL(rc)) {
     LOG_INFO("bind expression failed. rc=%s", strrc(rc));
     return rc;
@@ -111,6 +120,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->filter_expressions_.swap(filter_expressions);
   // select_stmt->filter_stmt_ = filter_stmt;
   select_stmt->group_by_.swap(group_by_expressions);
+  select_stmt->having_filter_expressions_.swap(having_filter_expressions);
   stmt = select_stmt;
   return RC::SUCCESS;
 }
