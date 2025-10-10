@@ -22,7 +22,7 @@ public:
   IvfflatIndex(){};
   virtual ~IvfflatIndex() noexcept {};
 
-  RC create(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta)
+  RC create(Table *table, const char *file_name, const IndexMeta &index_meta, const vector<FieldMeta> &fields_meta)
   {
     return RC::UNIMPLEMENTED;
   };

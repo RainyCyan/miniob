@@ -34,12 +34,14 @@ class IndexMeta
 {
 public:
   IndexMeta() = default;
-
-  RC init(const char *name, const FieldMeta &field);
+  //refactor with multi-fields
+  // RC init(const char *name, const FieldMeta &field);
+  RC init(const char *name, const vector<FieldMeta> &fields);
 
 public:
   const char *name() const;
-  const char *field() const;
+  const char *fields_str() const;
+  vector<string> fields();
 
   void desc(ostream &os) const;
 
@@ -49,5 +51,6 @@ public:
 
 protected:
   string name_;   // index's name
-  string field_;  // field's name
+  vector<string> fields_;  // fields' name
+  string fields_str_;
 };

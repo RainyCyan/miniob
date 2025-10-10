@@ -38,7 +38,7 @@ public:
   }
   RC get_record(const RID &rid, Record &record) override;
 
-  RC create_index(Trx *trx, const FieldMeta *field_meta, const char *index_name) override;
+  RC create_index(Trx *trx, const vector<FieldMeta> &fields_meta, const char *index_name) override;
   // by ywm,drop_index method
   RC drop_index(Trx *trx, const char *index_name) override;
   // by ywm clear_index

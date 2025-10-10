@@ -21,28 +21,29 @@ See the Mulan PSL v2 for more details. */
 
 BplusTreeIndex::~BplusTreeIndex() noexcept { close(); }
 
-RC BplusTreeIndex::create(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta)
+RC BplusTreeIndex::create(Table *table, const char *file_name, const IndexMeta &index_meta, const vector<FieldMeta> &fields_meta)
 {
   if (inited_) {
-    LOG_WARN("Failed to create index due to the index has been created before. file_name:%s, index:%s, field:%s",
-        file_name, index_meta.name(), index_meta.field());
+    LOG_WARN("Failed to create index due to the index has been created before. file_name:%s, index:%s, fields:%s",
+        file_name, index_meta.name(), index_meta.fields_str());
     return RC::RECORD_OPENNED;
   }
 
-  Index::init(index_meta, field_meta);
+  Index::init(index_meta, fields_meta);
 
   BufferPoolManager &bpm = table->db()->buffer_pool_manager();
+  //refactor index_handler_.create with multi_index
   RC rc = index_handler_.create(table->db()->log_handler(), bpm, file_name, field_meta.type(), field_meta.len());
   if (RC::SUCCESS != rc) {
     LOG_WARN("Failed to create index_handler, file_name:%s, index:%s, field:%s, rc:%s",
-        file_name, index_meta.name(), index_meta.field(), strrc(rc));
+        file_name, index_meta.name(), index_meta.fields_str(), strrc(rc));
     return rc;
   }
 
   inited_ = true;
   table_  = table;
   LOG_INFO("Successfully create index, file_name:%s, index:%s, field:%s",
-    file_name, index_meta.name(), index_meta.field());
+    file_name, index_meta.name(), index_meta.fields_str());
   return RC::SUCCESS;
 }
 

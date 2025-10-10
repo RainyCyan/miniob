@@ -160,6 +160,7 @@ private:
   AttrPrinter attr_printer_;
 };
 
+#define MAX_FILED_NUM 20
 /**
  * @brief the meta information of bplus tree
  * @ingroup BPlusTree
@@ -173,20 +174,49 @@ struct IndexFileHeader
     memset(this, 0, sizeof(IndexFileHeader));
     root_page = BP_INVALID_PAGE_NUM;
   }
-  PageNum  root_page;          ///< 根节点在磁盘中的页号
-  int32_t  internal_max_size;  ///< 内部节点最大的键值对数
-  int32_t  leaf_max_size;      ///< 叶子节点最大的键值对数
-  int32_t  attr_length;        ///< 键值的长度
-  int32_t  key_length;         ///< attr length + sizeof(RID)
-  AttrType attr_type;          ///< 键值的类型
+  PageNum root_page;          ///< 根节点在磁盘中的页号
+  int32_t internal_max_size;  ///< 内部节点最大的键值对数
+  int32_t leaf_max_size;      ///< 叶子节点最大的键值对数
+  // int32_t  attr_length;        ///< 键值的长度
+  int32_t key_length;  ///< attr length + sizeof(RID)
+  // AttrType attr_type;          ///< 键值的类型
+
+  // add array to support multi-index
+  int32_t  field_num;
+  int32_t  attr_length[MAX_FIELD_NUM];
+  AttrType attr_type[MAX_FIELD_NUM];
+
+  string attr_types_to_string(const AttrType *types, int32_t field_num) const
+  {
+    string res = "{";
+    for (int i = 0; i < field_num; i++) {
+      res += attr_type_to_string(types[i]);
+      if (i != field_num - 1)
+        res += ",";
+    }
+    res += "}";
+    return res;
+  }
+
+  string attr_lens_to_string(const int32_t *lens, int32_t field_num) const
+  {
+    string res = "{";
+    for (int i = 0; i < field_num; i++) {
+      res += std::to_string(lens[i]);
+      if (i != field_num - 1)
+        res += ",";
+    }
+    res += "}";
+    return res;
+  }
 
   const string to_string() const
   {
     stringstream ss;
 
-    ss << "attr_length:" << attr_length << ","
+    ss << "attr_length:" << attr_lens_to_string(attr_length, field_num) << ","
        << "key_length:" << key_length << ","
-       << "attr_type:" << attr_type_to_string(attr_type) << ","
+       << "attr_type:" << attr_types_to_string(attr_type, field_num) << ","
        << "root_page:" << root_page << ","
        << "internal_max_size:" << internal_max_size << ","
        << "leaf_max_size:" << leaf_max_size << ";";
@@ -459,13 +489,13 @@ public:
    * @param internal_max_size 内部节点最大大小
    * @param leaf_max_size 叶子节点最大大小
    */
-  RC create(LogHandler &log_handler, BufferPoolManager &bpm, const char *file_name, AttrType attr_type, int attr_length,
+  RC create(LogHandler &log_handler, BufferPoolManager &bpm, const char *file_name, vector<AttrType> &attr_type, vector<int>& attr_length,
       int internal_max_size = -1, int leaf_max_size = -1);
-  RC create(LogHandler &log_handler, DiskBufferPool &buffer_pool, AttrType attr_type, int attr_length,
+  RC create(LogHandler &log_handler, DiskBufferPool &buffer_pool, vector<AttrType> attr_type, vector<int> attr_length,
       int internal_max_size = -1, int leaf_max_size = -1);
 
   // by ywm,add drop method
-  RC drop(LogHandler &log_handler,BufferPoolManager &bpm,const char *file_name);
+  RC drop(LogHandler &log_handler, BufferPoolManager &bpm, const char *file_name);
   /**
    * @brief 打开一个B+树
    * @param log_handler 记录日志

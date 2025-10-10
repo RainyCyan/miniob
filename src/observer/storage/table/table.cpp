@@ -370,9 +370,9 @@ RC Table::get_chunk_scanner(ChunkFileScanner &scanner, Trx *trx, ReadWriteMode m
   return engine_->get_chunk_scanner(scanner, trx, mode);
 }
 
-RC Table::create_index(Trx *trx, const FieldMeta *field_meta, const char *index_name)
+RC Table::create_index(Trx *trx, const vector<FieldMeta> &fields_meta, const char *index_name)
 {
-  return engine_->create_index(trx, field_meta, index_name);
+  return engine_->create_index(trx, fields_meta, index_name);
 }
 
 RC Table::drop_index(Trx *trx, const char *index_name) { return engine_->drop_index(trx, index_name); }

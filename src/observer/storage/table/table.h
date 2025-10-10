@@ -99,8 +99,8 @@ public:
   RC update_record_with_trx(const Record &old_record, const Record &new_record, Trx *trx);
   RC get_record(const RID &rid, Record &record);
 
-  // TODO refactor
-  RC create_index(Trx *trx, const FieldMeta *field_meta, const char *index_name);
+  // TODO refactor with multi-fields
+  RC create_index(Trx *trx, const vector<FieldMeta> &fields_meta, const char *index_name);
 
   // TODO drop_index
   RC drop_index(Trx *trx,  const char *index_name);

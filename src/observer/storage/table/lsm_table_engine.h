@@ -43,7 +43,7 @@ public:
   }
   RC get_record(const RID &rid, Record &record) override { return RC::UNIMPLEMENTED; }
 
-  RC create_index(Trx *trx, const FieldMeta *field_meta, const char *index_name) override { return RC::UNIMPLEMENTED; }
+  RC create_index(Trx *trx, const vector<FieldMeta> &fields_meta, const char *index_name) override { return RC::UNIMPLEMENTED; }
   RC drop_index(Trx *trx, const char *index_name) override { return RC::UNIMPLEMENTED; }
   RC clear_index() { return RC::UNIMPLEMENTED; }
   RC get_record_scanner(RecordScanner *&scanner, Trx *trx, ReadWriteMode mode) override;

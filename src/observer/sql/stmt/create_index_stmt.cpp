@@ -27,9 +27,9 @@ RC CreateIndexStmt::create(Db *db, const CreateIndexSqlNode &create_index, Stmt 
 
   const char *table_name = create_index.relation_name.c_str();
   if (is_blank(table_name) || is_blank(create_index.index_name.c_str()) ||
-      is_blank(create_index.attribute_name.c_str())) {
-    LOG_WARN("invalid argument. db=%p, table_name=%p, index name=%s, attribute name=%s",
-        db, table_name, create_index.index_name.c_str(), create_index.attribute_name.c_str());
+      create_index.attributes.empty()) {
+    LOG_WARN("invalid argument. db=%p, table_name=%p, index name=%s",
+        db, table_name, create_index.index_name.c_str());
     return RC::INVALID_ARGUMENT;
   }
 
@@ -39,12 +39,16 @@ RC CreateIndexStmt::create(Db *db, const CreateIndexSqlNode &create_index, Stmt 
     LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
-
-  const FieldMeta *field_meta = table->table_meta().field(create_index.attribute_name.c_str());
-  if (nullptr == field_meta) {
-    LOG_WARN("no such field in table. db=%s, table=%s, field name=%s", 
-             db->name(), table_name, create_index.attribute_name.c_str());
-    return RC::SCHEMA_FIELD_NOT_EXIST;
+  // todo,refactor here to support multi-index
+  vector<FieldMeta> fields;
+  for (auto &attr : create_index.attributes) {
+    const FieldMeta *field_meta = table->table_meta().field(attr.c_str());
+    if (nullptr == field_meta) {
+      LOG_WARN("no such field in table. db=%s, table=%s, field name=%s", 
+             db->name(), table_name, attr.c_str());
+      return RC::SCHEMA_FIELD_NOT_EXIST;
+    }
+    fields.emplace_back(*field_meta);
   }
 
   Index *index = table->find_index(create_index.index_name.c_str());
@@ -53,6 +57,6 @@ RC CreateIndexStmt::create(Db *db, const CreateIndexSqlNode &create_index, Stmt 
     return RC::SCHEMA_INDEX_NAME_REPEAT;
   }
 
-  stmt = new CreateIndexStmt(table, field_meta, create_index.index_name);
+  stmt = new CreateIndexStmt(table, fields, create_index.index_name);
   return RC::SUCCESS;
 }

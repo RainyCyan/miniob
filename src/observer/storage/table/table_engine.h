@@ -47,7 +47,7 @@ public:
   virtual RC update_record_with_trx(const Record &old_record, const Record &new_record, Trx *trx) = 0;
   virtual RC get_record(const RID &rid, Record &record)                                           = 0;
 
-  virtual RC create_index(Trx *trx, const FieldMeta *field_meta, const char *index_name) = 0;
+  virtual RC create_index(Trx *trx, const vector<FieldMeta> &fields_meta, const char *index_name) = 0;
   // by ywm,add virtual base method,successed by heap_table_engine
   virtual RC drop_index(Trx *trx, const char *index_name) = 0;
   // by ywm,add virtual clear_index(drop all)

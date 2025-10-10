@@ -27,8 +27,8 @@ class FieldMeta;
 class CreateIndexStmt : public Stmt
 {
 public:
-  CreateIndexStmt(Table *table, const FieldMeta *field_meta, const string &index_name)
-      : table_(table), field_meta_(field_meta), index_name_(index_name)
+  CreateIndexStmt(Table *table, const vector<FieldMeta> &fields_meta, const string &index_name)
+      : table_(table), fields_meta_(fields_meta), index_name_(index_name)
   {}
 
   virtual ~CreateIndexStmt() = default;
@@ -36,7 +36,8 @@ public:
   StmtType type() const override { return StmtType::CREATE_INDEX; }
 
   Table           *table() const { return table_; }
-  const FieldMeta *field_meta() const { return field_meta_; }
+  // const FieldMeta *field_meta() const { return field_meta_; }
+  const vector<FieldMeta> &fields_meta() const { return fields_meta_; }
   const string    &index_name() const { return index_name_; }
 
 public:
@@ -44,6 +45,7 @@ public:
 
 private:
   Table           *table_      = nullptr;
-  const FieldMeta *field_meta_ = nullptr;
+  // const FieldMeta *field_meta_ = nullptr;
+  const vector<FieldMeta> fields_meta_;
   string           index_name_;
 };

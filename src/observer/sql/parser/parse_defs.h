@@ -214,7 +214,8 @@ struct CreateIndexSqlNode
 {
   string index_name;      ///< Index name
   string relation_name;   ///< Relation name
-  string attribute_name;  ///< Attribute name
+  // string attribute_name;  ///< Attribute name
+  vector<string> attributes;  ///< Attributes' name
 };
 
 /**
